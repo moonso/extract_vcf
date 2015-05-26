@@ -96,7 +96,7 @@ def test_plugin():
     config_file = setup_config_file(config_lines=config_lines)
     parser = ConfigParser(config_file)
     
-    assert parser.plugins == ["Plugin"]
+    assert list(parser.plugins.keys()) == ["Plugin"]
 
 def test_plugin_no_field():
     """

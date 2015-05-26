@@ -26,7 +26,7 @@ def setup_vcf():
     
 
 def setup_variant(chrom='1', pos='1', rs_id='.', ref='a', alt='c', qual='.', 
-                   filt='.', info='.', form='.'):
+                   filt='.', info='.', form=None, info_dict=None):
     """
     Setup a variant dictionary with the info given
     
@@ -42,8 +42,12 @@ def setup_variant(chrom='1', pos='1', rs_id='.', ref='a', alt='c', qual='.',
         'QUAL': qual,
         'FILTER': filt,
         'INFO': info,
-        'FORMAT': form
     }
+    if form:
+        variant['FORMAT'] = form
+    
+    if info_dict:
+        variant['info_dict'] = info_dict
     
     return variant
 
@@ -53,7 +57,7 @@ def test_inititating_plugin():
     """
     name = "Example"
     field = "FILTER"
-    data_type = "str"
+    data_type = "string"
     separators = [';']
     test_plugin = Plugin(name=name, field=field, data_type=data_type, 
                         separators=separators)
@@ -62,6 +66,24 @@ def test_inititating_plugin():
     assert test_plugin.field == field
     assert test_plugin.data_type == data_type
     assert test_plugin.separators == separators
+
+def test_inititating_info_plugin():
+    """
+    Test if basic setup works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "integer"
+    separators = [',']
+    info_key = 'MQ'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, info_key=info_key)
+    
+    assert test_plugin.name == name
+    assert test_plugin.field == field
+    assert test_plugin.data_type == data_type
+    assert test_plugin.separators == separators
+    assert test_plugin.info_key == info_key
     
 
 def test_get_value():
@@ -70,13 +92,96 @@ def test_get_value():
     """
     name = "Example"
     field = "FILTER"
-    data_type = "str"
+    data_type = "string"
     separators = [';']
+    entry = 'PASS'
     test_plugin = Plugin(name=name, field=field, data_type=data_type, 
                         separators=separators)
     
-    variant = setup_variant(filt='PASS')
-    
+    variant = setup_variant(filt=entry)
+
+    assert test_plugin.get_raw_entry(variant) == 'PASS'    
+    assert test_plugin.get_annotations(entry) == ['PASS']
     assert test_plugin.get_value(variant) == 'PASS'
+
+def test_multi_value():
+    """
+    Test if a filter with two values return correct
+    """
+    name = "Example"
+    field = "FILTER"
+    data_type = "string"
+    separators = [';']
+    entry = 'PASS;LOWQual'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators)
+    
+    variant = setup_variant(filt=entry)
+
+    assert test_plugin.get_raw_entry(variant) == entry    
+    assert test_plugin.get_annotations(entry) == ['PASS', 'LOWQual']
+    assert test_plugin.get_value(variant) == entry
+
+def test_string_rules():
+    """
+    Test if a if the string rules work correct
+    """
+    name = "Example"
+    field = "FILTER"
+    data_type = "string"
+    separators = [';']
+    entry = 'PASS;RaLOWQual'
+    string_rules = {'PASS':1, 'RaLOWQual':0}
+    record_rule = 'min'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, record_rule=record_rule,
+                        string_rules=string_rules)
+    
+    variant = setup_variant(filt=entry)
+
+    assert test_plugin.get_raw_entry(variant) == entry    
+    assert test_plugin.get_annotations(entry) == ['PASS', 'RaLOWQual']
+    assert test_plugin.get_value(variant) == 'RaLOWQual'
+
+
+def test_get_info_value():
+    """
+    Test if basic get value works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "integer"
+    separators = [',']
+    info_dict = {'MQ': ['1', '2']}
+    record_rule = 'max'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, info_key='MQ', 
+                        record_rule=record_rule)
+    
+    variant = setup_variant(info='MQ=1,2', info_dict=info_dict)
+    
+    assert test_plugin.get_raw_entry(variant) == '1,2'
+    assert test_plugin.get_annotations('1,2') == [1, 2]
+    assert test_plugin.get_value(variant) == 2
+
+def test_complex_info_value():
+    """
+    Test if complex info value works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "integer"
+    separators = [',',':','|']
+    info_dict = {'TEST': ['a:12|11', 'b:9|27']}
+    record_rule = 'min'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, info_key='TEST', 
+                        record_rule=record_rule)
+    
+    variant = setup_variant(info_dict=info_dict)
+    
+    assert test_plugin.get_raw_entry(variant) == 'a:12|11,b:9|27'
+    assert set(test_plugin.get_annotations('a:12|11,b:9|27')) == set([12, 11, 9, 27])
+    assert test_plugin.get_value(variant) == 9
     
     

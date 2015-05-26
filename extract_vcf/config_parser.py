@@ -25,7 +25,8 @@ Each plugin section will look like:
 [Plugin_name]
   section = section_name # str in ['CHROM','POS','ID','REF','ALT', 'FILTER',
                           'QUAL', 'FILTER','INFO','FORMAT','sample_id']
-  data_type = data_type # str in ['integer','float','flag','character','string']
+  data_type = data_type # str in ['integer','float','flag','string']
+  record_rule = record_rule # str in ['min', 'max']
 
 
 Created by Måns Magnusson on 2015-04-16.
@@ -54,13 +55,13 @@ class ConfigParser(ConfigObj):
                                         indent_type=indent_type, 
                                         encoding=encoding,
                                         )
-        logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
         self.vcf_columns = ['CHROM','POS','ID','REF','ALT', 'FILTER','QUAL',
                             'FILTER','INFO','FORMAT','sample_id']
         self.data_types = ['integer','float','flag','character','string']
         # self.data_numbers = ['A','G','.','R']
         
-        logger.info("Checking version and name")
+        self.logger.info("Checking version and name")
         self.version_check()
         self.version = float(self['Version']['version'])
         self.name = self['Version']['name']
@@ -69,23 +70,24 @@ class ConfigParser(ConfigObj):
         
         self.categories = {}
         
-        logger.info("Checking plugins")
+        self.logger.info("Checking plugins")
         
         for plugin in self.keys():
             if plugin != 'Version':
-                logger.debug("Checking plugin: {0}".format(plugin))
+                self.logger.debug("Checking plugin: {0}".format(plugin))
                 self.check_plugin(plugin)
-                logger.debug("Plugin {0} is ok".format(plugin))
+                self.logger.debug("Plugin {0} is ok".format(plugin))
                 plugin_info = self[plugin]
-                logger.debug("Adding plugin {0} to ConfigParser".format(plugin))
+                self.logger.debug("Adding plugin {0} to ConfigParser".format(plugin))
                 self.plugins[plugin] = Plugin(
                     name=plugin, 
                     field=plugin_info['field'], 
                     data_type=plugin_info['data_type'], 
                     separators=plugin_info.get('separators',[]), 
-                    info_field=plugin_info.get('info_key',None),
+                    info_key=plugin_info.get('info_key',None),
                     category=plugin_info.get('info_key',None),
-                    csq_field=plugin_info.get('csq_field', None)
+                    csq_key=plugin_info.get('csq_key', None),
+                    record_rule=plugin_info.get('record_rule', 'max')
                 )
                 category = plugin_info.get('category', None)
                 if category:
@@ -188,12 +190,25 @@ class ConfigParser(ConfigObj):
                 "keyword 'data_type'.\n"
                 "Missing data_type in plugin: {0}".format(plugin)
                 )
+
         
         separators = vcf_section.get('separators', None)
         if separators:
             if len(separators) == 1:
-                vcf_section = self[plugin]['separators'] = list(separators)
-
+                self[plugin]['separators'] = list(separators)
+        
+        
+        record_rule = vcf_section.get('record_rule', None)
+        if record_rule:
+            if not record_rule in ['min', 'max']:
+                raise ValidateError(
+                    "Record rules have to be in {0}\n"
+                    "Wrong record_rule in plugin: {1}".format(
+                        ['min', 'max'], plugin)
+                )
+        else:
+            self.logger.info("Setting record rule to default: 'max'")
+                
     #     try:
     #         if not vcf_section['data_number'] in data_numbers:
     #             raise ValidateError(
@@ -209,123 +224,6 @@ class ConfigParser(ConfigObj):
     #             )
     #
         return True
-    #
-    # def vcf_score_check(self, vcf_section, section_name):
-    #     """
-    #     Check if the section is in the proper vcf score format.
-    #
-    #     Args:
-    #         vcf_section (dict): The information from a vcf section
-    #
-    #     Returns:
-    #         True is it is in the proper format
-    #
-    #     """
-    #     # Default will be set to 'max'
-    #     category_aggregations = ['sum','min','max']
-    #     record_aggregations = ['min','max']
-    #
-    #     try:
-    #         category = vcf_section['category']
-    #         if not isinstance(category, string_types):
-    #             raise ValidateError(
-    #                     "category has to be a string.\n"
-    #                     "Please update category to section %s"
-    #                     % section_name
-    #                     )
-    #     except KeyError:
-    #         raise ValidateError(
-    #                 "Score entrys have to belong to a category.\n"
-    #                 "Refer with keyword 'category'\n"
-    #                 "Please add category to section %s"
-    #                 % section_name
-    #                 )
-    #     try:
-    #         if not vcf_section['category_aggregation'] in category_aggregations:
-    #             raise ValidateError(
-    #                 "category_aggregations has to be in %s.\n"
-    #                 "Please update category_aggregation in section %s\n"
-    #                 % (category_aggregations,section_name)
-    #                 )
-    #     except KeyError:
-    #         vcf_section['category_aggregation'] = 'max'
-    #
-    #     try:
-    #         if not vcf_section['record_aggregation'] in record_aggregations:
-    #             raise ValidateError(
-    #                 "record_aggregation has to be in %s.\n"
-    #                 "Please update record_aggregation in section %s\n"
-    #                 % (record_aggregations, section_name)
-    #                 )
-    #     except KeyError:
-    #         raise ValidateError(
-    #             "Score entrys has to have a record aggregation rule.\n"
-    #             "Refer with keyword 'record_aggregation'\n"
-    #             'Please update record aggregation in section %s\n'
-    #             % section_name
-    #             )
-    #
-    #     try:
-    #         vcf_section['not_reported']
-    #     except KeyError:
-    #         raise ValidateError(
-    #             "Score entrys has to have a not_reported score.\n"
-    #             "Refer with sub section [[not_reported]]' in %s"
-    #             % section_name
-    #             )
-    #
-    #     operators = ['eq', 'le', 'lt', 'gt', 'ge', 'na']
-    #     # Check if the score defenitions are in the proper format
-    #     for sub_section in vcf_section:
-    #         if isinstance(vcf_section[sub_section], dict):
-    #
-    #             try:
-    #                 score = vcf_section[sub_section]['score']
-    #             except KeyError:
-    #                 raise ValidateError(
-    #                     "Score entrys has to have a score.\n"
-    #                     "Missing score in section %s, function %s"
-    #                     % (section_name, sub_section)
-    #                     )
-    #             try:
-    #                 operator = vcf_section[sub_section]['operator']
-    #
-    #                 if not operator in operators:
-    #                     raise ValidateError(
-    #                         "Score entrys has to have a operator in %s\n"
-    #                         "Please update in section %s, score function: %s"""
-    #                             % (operators, section_name, sub_section))
-    #
-    #                 if vcf_section['data_type'] == 'string':
-    #                     if not operator == 'eq' and sub_section != 'not_reported':
-    #                         raise ValidateError(
-    #                         "If data type is string, operator has to be 'eq'.\n"
-    #                         "Please update in section: %s, score function: %s"""
-    #                         % (section_name, sub_section)
-    #                         )
-    #
-    #
-    #
-    #             except KeyError:
-    #                 # If datatype is string, set operator to 'eq'
-    #                 if vcf_section['data_type'] == 'string':
-    #                     vcf_section[sub_section]['operator'] = 'eq'
-    #                 else:
-    #                     raise ValidateError(
-    #                     "Score entrys has to have a operator.\n"
-    #                     "Missing operator in section: %s, score function: %s"
-    #                     % (section_name, sub_section)
-    #                     )
-    #             try:
-    #                 value = vcf_section[sub_section]['value']
-    #             except KeyError:
-    #                 raise ValidateError(
-    #                     "Score entrys has to have a value.\n"
-    #                     "Missing value in section: %s, function: %s"
-    #                     % (section_name, sub_section)
-    #                     )
-    #
-    #     return vcf_section
     #
     #
     # def write_config(self, outfile):
