@@ -6,7 +6,7 @@ class Plugin(object):
     """Class for holding information about a plugin"""
     def __init__(self, name, field, data_type, separators, info_key=None, 
                 category=None, csq_key=None, record_rule=None, 
-                string_rules=None):
+                string_rules={}):
         """
         The plugin class hold plugin information. The main task for a plugin
         is to return the correct value from a vcf field based on a number of
@@ -35,7 +35,9 @@ class Plugin(object):
         """
         super(Plugin, self).__init__()
         self.logger = getLogger(__name__)
+        self.logger = getLogger('extract_vcf.plugin')
         
+        # These are the valid data types for a entry
         self.data_types = ['integer','float','flag','string']
         self.name = name
         self.logger.info("Initiating plugin with name: {0}".format(
@@ -45,7 +47,7 @@ class Plugin(object):
         self.logger.info("Field: {0}".format(self.field))
         if data_type not in self.data_types:
             raise SyntaxError("data_type has to be in {0}".format(
-                self.data_types
+                ','.join(self.data_types)
             ))
         self.data_type = data_type
         self.logger.info("Data type: {0}".format(self.data_type))
@@ -81,7 +83,7 @@ class Plugin(object):
         Returns:
             annotations (list): A list with the annotations found
         """
-        annotations = []        
+        annotations = []
         
         def get_values(string, splitters, i=1):
             """
@@ -105,7 +107,6 @@ class Plugin(object):
         value = None
         
         # Raw annotation is the raw string from the vcf.
-        
         if len(self.separators) > 0:
             get_values(raw_annotation, self.separators)
         
@@ -141,22 +142,35 @@ class Plugin(object):
         Returns:
             raw_entry (str): A string that represents the raw entry
         """
-        raw_annotation = ""
+        raw_annotation = None
         
         if self.field == 'INFO':
             if self.csq_key:
+                
                 vep_annotations = []
-                for allele in variant.get('vep_info', {}):
-                    if allele != 'gene_ids':
-                        vep_annotations.append(vep_info.get(self.csq_key, ""))
+                vep_info = variant.get('vep_info', {})
+                
+                for allele in vep_info:
+                    if self.csq_key in vep_info:
+                        vep_annotations.append(vep_info[self.csq_key])
                 raw_annotation = ','.join(vep_annotations)
+                
             else:
-                raw_annotation = ','.join(variant.get('info_dict', {}).get(
-                    self.info_key, []
-                ))
+                info_dict = variant.get('info_dict', {})
+                
+                if self.info_key in info_dict:
+                    # If we are looking for a flag we search and see if we
+                    # find the entry
+                    if self.data_type == "flag":
+                        raw_annotation = "True"
+                    else:
+                        raw_annotation = ','.join(info_dict[self.info_key])
         else:
-            raw_annotation = variant.get(self.field, "")
-        
+            raw_annotation = variant.get(self.field, '.')
+
+        if self.data_type == "flag":
+            if raw_annotation == '.':
+                raw_annotation = None
         return raw_annotation
         
     
@@ -165,9 +179,21 @@ class Plugin(object):
         Return the value as specified by plugin
         
         Get value will return one value or None if no correct value is found.
+        
+        Arguments:
+            variant (dict): A vcf_parser style variant dictionary
+        
+        Returns:
+            value (str): A string that represents the correct value
+        
         """
         value = None
         raw_entry = self.get_raw_entry(variant)
+        if self.data_type == 'flag':
+            if raw_entry:
+                value = "True"
+            return value
+        
         annotations = self.get_annotations(raw_entry)
         
         if self.record_rule:
@@ -198,19 +224,36 @@ class Plugin(object):
     
     def __repr__(self):
         return "Plugin(name={0},field={1},data_type={2},separators={3},"\
-                "record_rule={4},info_key={5},category={6})".format(
-            self.name, self.field, self.data_type, self.separators,
-            self.record_rule, self.info_key, self.category
-        )
+                "record_rule={4},info_key={5},category={6},"\
+                "string_rules={7})".format(self.name, self.field, 
+                self.data_type, self.separators,self.record_rule, 
+                self.info_key, self.category, self.string_rules)
 
 @click.command()
 def cli():
+    from extract_vcf import logger
+    from extract_vcf.log import init_log
+    init_log(logger, loglevel="DEBUG")
     name = "Example"
     field = "INFO"
-    data_type = "int"
+    data_type = "integer"
     separators = [',',':','|']
     test_plugin = Plugin(name=name, field=field, data_type=data_type, 
-                        separators=separators, info_key='TEST')
+                        separators=separators, info_key='TEST', record_rule='max')
+
+    print(test_plugin)
+    
+    thousand_g = Plugin(name='1000G', field='INFO', data_type='float', 
+                        separators=',', info_key='1000GAF', record_rule='max')
+    print(thousand_g)
+
+    db = Plugin(name='DB', field='INFO', data_type='flag', 
+                        separators=None, info_key='DB')
+    print(db)
+
+    id_plugin = Plugin(name='id', field='ID', data_type='flag', 
+                        separators=None, info_key=None)
+    print(id_plugin)
     
     variant = {
         'CHROM': '1',
@@ -220,14 +263,19 @@ def cli():
         'ALT': 'C',
         'QUAL': '100',
         'FILTER': 'PASS',
-        'INFO': 'MQ=1,2;TEST=a:12|11,b:9|27',
+        'INFO': 'MQ=1,2;TEST=a:12|11,b:9|27;1000GAF=0.718251;DB',
         'info_dict': {
             'MQ': ['1', '2'],
-            'TEST': ['a:12|11', 'b:9|27']
+            'TEST': ['a:12|11', 'b:9|27'],
+            '1000GAF': ['0.718251'],
+            'DB': []
         }
     }
     
-    print(test_plugin.get_annotations(variant))
+    print(test_plugin.get_value(variant))
+    print(thousand_g.get_value(variant))
+    print(db.get_value(variant))
+    print(id_plugin.get_value(variant))
     
 
     

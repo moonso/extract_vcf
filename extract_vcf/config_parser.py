@@ -39,12 +39,12 @@ import logging
 import click
 
 from six import string_types
-from configobj import ConfigObj
+import configobj
 from validate import ValidateError
 
 from extract_vcf import Plugin
 
-class ConfigParser(ConfigObj):
+class ConfigParser(configobj.ConfigObj):
     """
     Class for holding information from config file.
     
@@ -56,17 +56,23 @@ class ConfigParser(ConfigObj):
                                         encoding=encoding,
                                         )
         self.logger = logging.getLogger(__name__)
+        
         self.vcf_columns = ['CHROM','POS','ID','REF','ALT', 'FILTER','QUAL',
                             'FILTER','INFO','FORMAT','sample_id']
+        
         self.data_types = ['integer','float','flag','character','string']
         # self.data_numbers = ['A','G','.','R']
         
         self.logger.info("Checking version and name")
         self.version_check()
         self.version = float(self['Version']['version'])
+        self.logger.debug("Set version to {0}".format(self.version))
         self.name = self['Version']['name']
+        self.logger.debug("Set name to {0}".format(self.name))
         
         self.plugins = {plugin:None for plugin in self.keys() if plugin != 'Version'}
+        self.logger.info("Found plugins: {0}".format(
+            ', '.join(list(self.plugins.keys()))))
         
         self.categories = {}
         
@@ -78,30 +84,81 @@ class ConfigParser(ConfigObj):
                 self.check_plugin(plugin)
                 self.logger.debug("Plugin {0} is ok".format(plugin))
                 plugin_info = self[plugin]
+                
+                string_info = []
+                
+                for key in plugin_info:
+                    try:
+                        string_info.append(dict(plugin_info[key]))
+                    except ValueError:
+                        pass
+                
+                string_rules = {}
+                if len(string_info) > 0:
+                    string_rules = self.get_string_dict(string_info)
+                
                 self.logger.debug("Adding plugin {0} to ConfigParser".format(plugin))
+                category = plugin_info.get('category', None)
+                
                 self.plugins[plugin] = Plugin(
                     name=plugin, 
                     field=plugin_info['field'], 
                     data_type=plugin_info['data_type'], 
                     separators=plugin_info.get('separators',[]), 
                     info_key=plugin_info.get('info_key',None),
-                    category=plugin_info.get('info_key',None),
+                    category=category,
                     csq_key=plugin_info.get('csq_key', None),
-                    record_rule=plugin_info.get('record_rule', 'max')
+                    record_rule=plugin_info.get('record_rule', 'max'),
+                    string_rules=string_rules
                 )
-                category = plugin_info.get('category', None)
+                
                 if category:
                     if category in self.categories:
                         self.categories[category].append(plugin)
                     else:
                         self.categories[category] = [plugin]
-                
+                    self.logger.debug("Adding {0} to category {1}".format(
+                        plugin, category))
+                    
     #
     #     logger.info("Checking plugin scores")
     #     for plugin in self.plugins:
     #         logger.debug("Checking plugin score: {0}".format(plugin))
     #         self[plugin] = self.vcf_score_check(self[plugin], plugin)
     #
+    def get_string_dict(self, string_info):
+        """
+        Convert a section with information of priorities to a string dict.
+        
+        Arguments:
+            string_info (list): A list of dictionaries with information about
+                                strings
+        
+        Return:
+            string_dict (dict): A dictionary with strings as keys and integer
+                                that specifies their priorities as values
+        """
+        string_dict = {}
+        for raw_info in string_info:
+            try:
+                string = raw_info['string']
+            except KeyError:
+                raise ValidateError("String information has to have a 'string'")
+            try:
+                priority = raw_info['priority']
+            except KeyError:
+                raise ValidateError("String information has to have a 'priority'")
+            try:
+                priority = int(priority)
+            except ValueError:
+                raise ValidateError("'priority' has to be an integer")
+            
+            string_dict[string] = priority
+        
+        return string_dict
+            
+    
+    
     def version_check(self):
         """
         Check if the version entry is in the proper format
@@ -199,6 +256,8 @@ class ConfigParser(ConfigObj):
         
         
         record_rule = vcf_section.get('record_rule', None)
+        
+        
         if record_rule:
             if not record_rule in ['min', 'max']:
                 raise ValidateError(

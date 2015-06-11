@@ -167,6 +167,25 @@ def test_info_plugin_no_info_field():
     with pytest.raises(ValidateError):
         parser = ConfigParser(config_file)
 
+def test_csq_plugin():
+    """
+    Test if parses plugin correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = CSQ\n"
+        "  csq_key = Feature_type\n"
+        "  data_type = string\n",
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    parser = ConfigParser(config_file)
+
 def test_csq_plugin_no_csq_field():
     """
     Test if parses plugin correct
@@ -200,11 +219,42 @@ def test_plugin_separators():
         "  field = INFO\n"
         "  info_key = MQ\n"
         "  data_type = integer\n",
-        "  separators = ','\n"
+        "  separators = ',',':'\n"
     ]
     config_file = setup_config_file(config_lines=config_lines)
     
     parser = ConfigParser(config_file)
     
-    assert parser.plugins['Plugin'].separators == [',']
+    assert parser.plugins['Plugin'].separators == [',',':']
+
+def test_plugin_string_dict():
+    """
+    Test if parses plugin correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+        "  [[AD]]\n",
+        "    string = AD\n",
+        "    priority = 2\n",
+        "  [[AD_dn]]\n",
+        "    string = AD_dn\n",
+        "    priority = 1\n",
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    parser = ConfigParser(config_file)
+    
+    assert parser.plugins['Plugin'].string_rules == {
+        'AD': 2,
+        'AD_dn': 1,
+    }
     
