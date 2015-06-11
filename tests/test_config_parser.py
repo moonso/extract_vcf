@@ -257,4 +257,31 @@ def test_plugin_string_dict():
         'AD': 2,
         'AD_dn': 1,
     }
+
+def test_plugin_string_dict_wrong_string_key():
+    """
+    Test if parses plugin correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+        "  [[AD]]\n",
+        "    value = AD\n",
+        "    priority = 2\n",
+        "  [[AD_dn]]\n",
+        "    string = AD_dn\n",
+        "    priority = 1\n",
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
     
