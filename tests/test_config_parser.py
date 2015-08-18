@@ -26,6 +26,7 @@ def setup_config_file(name = None, version = None, config_lines = []):
         config_file.write("  name = {0}\n".format(name))
     if version:
         config_file.write("  version = {0}\n".format(version))
+    
     config_file.close()
     
     return config_file.name
@@ -79,7 +80,24 @@ def test_wrong_version():
     with pytest.raises(ValidateError):
         parser = ConfigParser(config_name, config_version)
 
-def test_plugin():
+def test_simple_plugin():
+    """docstring for test_simple_plugin"""
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = flag\n"
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    parser = ConfigParser(config_file)
+    
+
+def test_filter_plugin():
     """
     Test if parses plugin correct
     """
@@ -92,6 +110,14 @@ def test_plugin():
         "[Plugin]\n",
         "  field = FILTER\n",
         "  data_type = string\n",
+        "  separators = ';'\n",
+        "  [[PASS]]\n",
+        "    string = AD\n",
+        "    priority = 2\n",
+        "  [[FAIL]]\n",
+        "    string = AD_dn\n",
+        "    priority = 1\n",
+        
     ]
     config_file = setup_config_file(config_lines=config_lines)
     parser = ConfigParser(config_file)
@@ -143,7 +169,7 @@ def test_plugin_wrong_field_name():
         "  version = {0}\n".format(config_version),
         "[Plugin]\n",
         "  field = WRONG_FIELD_NAME\n"
-        "  data_type = string\n",
+        "  data_type = float\n",
     ]
     config_file = setup_config_file(config_lines=config_lines)
     with pytest.raises(ValidateError):
@@ -181,7 +207,8 @@ def test_csq_plugin():
         "  field = INFO\n"
         "  info_key = CSQ\n"
         "  csq_key = Feature_type\n"
-        "  data_type = string\n",
+        "  data_type = float\n",
+        "  separators = ','\n"
     ]
     config_file = setup_config_file(config_lines=config_lines)
     parser = ConfigParser(config_file)
@@ -284,4 +311,30 @@ def test_plugin_string_dict_wrong_string_key():
     
     with pytest.raises(ValidateError):
         parser = ConfigParser(config_file)
+
+def test_plugin_string_non_integer_priority():
+    """
+    Test if parses plugin correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+        "  [[AD]]\n",
+        "    string = AD\n",
+        "    priority = 2.5\n",
+        "  [[AD_dn]]\n",
+        "    string = AD_dn\n",
+        "    priority = 1\n",
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
     
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)

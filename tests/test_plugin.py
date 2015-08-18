@@ -100,8 +100,6 @@ def test_get_value():
     
     variant = setup_variant(filt=entry)
 
-    assert test_plugin.get_raw_entry(variant) == 'PASS'    
-    assert test_plugin.get_annotations(entry) == ['PASS']
     assert test_plugin.get_value(variant) == 'PASS'
 
 def test_multi_value():
@@ -117,10 +115,9 @@ def test_multi_value():
                         separators=separators)
     
     variant = setup_variant(filt=entry)
-
-    assert test_plugin.get_raw_entry(variant) == entry    
-    assert test_plugin.get_annotations(entry) == ['PASS', 'LOWQual']
-    assert test_plugin.get_value(variant) == entry
+    
+    #Since there is no record rule the first annotation found will be returned
+    assert test_plugin.get_value(variant) == "PASS"
 
 def test_string_rules():
     """
@@ -130,8 +127,8 @@ def test_string_rules():
     field = "FILTER"
     data_type = "string"
     separators = [';']
-    entry = 'PASS;RaLOWQual'
-    string_rules = {'PASS':1, 'RaLOWQual':0}
+    entry = 'PASS;LOWQual'
+    string_rules = {'PASS':1, 'LOWQual':0}
     record_rule = 'min'
     test_plugin = Plugin(name=name, field=field, data_type=data_type, 
                         separators=separators, record_rule=record_rule,
@@ -139,9 +136,7 @@ def test_string_rules():
     
     variant = setup_variant(filt=entry)
 
-    assert test_plugin.get_raw_entry(variant) == entry    
-    assert test_plugin.get_annotations(entry) == ['PASS', 'RaLOWQual']
-    assert test_plugin.get_value(variant) == 'RaLOWQual'
+    assert test_plugin.get_value(variant) == 'LOWQual'
 
 
 def test_get_info_value():
@@ -160,8 +155,6 @@ def test_get_info_value():
     
     variant = setup_variant(info='MQ=1,2', info_dict=info_dict)
     
-    assert test_plugin.get_raw_entry(variant) == '1,2'
-    assert test_plugin.get_annotations('1,2') == [1, 2]
     assert test_plugin.get_value(variant) == 2
 
 def test_complex_info_value():
@@ -180,8 +173,6 @@ def test_complex_info_value():
     
     variant = setup_variant(info_dict=info_dict)
     
-    assert test_plugin.get_raw_entry(variant) == 'a:12|11,b:9|27'
-    assert set(test_plugin.get_annotations('a:12|11,b:9|27')) == set([12, 11, 9, 27])
     assert test_plugin.get_value(variant) == 9
     
     
