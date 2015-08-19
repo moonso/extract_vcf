@@ -50,23 +50,25 @@ class Plugin(object):
         ))
         self.field = field
         self.logger.info("Field: {0}".format(self.field))
-        if data_type not in self.data_types:
-            raise SyntaxError("data_type has to be in {0}".format(
-                ','.join(self.data_types)
-            ))
+        
         self.data_type = data_type
         self.logger.info("Data type: {0}".format(self.data_type))
+        
         self.separators = separators
         self.logger.info("Separators: {0}".format(self.separators))
+        
         self.record_rule = record_rule
         self.logger.info("Record rule: {0}".format(self.record_rule))
         
         self.info_key = info_key
         self.logger.info("Info key: {0}".format(self.info_key))
+        
         self.csq_key = csq_key
         self.logger.info("CSQ key: {0}".format(self.csq_key))
+        
         self.category = category
         self.logger.info("Category: {0}".format(self.category))
+        
         self.string_rules = string_rules
         self.logger.info("String rules: {0}".format(self.string_rules))
         
@@ -124,6 +126,7 @@ class Plugin(object):
             # If there is no record rule
             else:
                 typed_annotations = []
+                
                 for value in annotations:
                 
                     if self.data_type == 'float':
@@ -138,12 +141,15 @@ class Plugin(object):
                             typed_annotations.append(int(value))
                         except ValueError:
                             pass
-                    
-                if self.record_rule == 'max':
-                    value = max(typed_annotations)
                 
-                elif self.record_rule == 'min':
-                    value = min(typed_annotations)
+                if typed_annotations:
+                    if self.record_rule == 'max':
+                        value = max(typed_annotations)
+                    
+                    elif self.record_rule == 'min':
+                        value = min(typed_annotations)
+                else:
+                    value = None
         
         # If no record rule is given we return the raw annotation
         # Here the data_type is not flag, and there is no record rule

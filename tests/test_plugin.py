@@ -138,6 +138,25 @@ def test_string_rules():
 
     assert test_plugin.get_value(variant) == 'LOWQual'
 
+def test_string_rules_max():
+    """
+    Test if a if the string rules work correct
+    """
+    name = "Example"
+    field = "FILTER"
+    data_type = "string"
+    separators = [';']
+    entry = 'PASS;LOWQual'
+    string_rules = {'PASS':1, 'LOWQual':0}
+    record_rule = 'max'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, record_rule=record_rule,
+                        string_rules=string_rules)
+    
+    variant = setup_variant(filt=entry)
+
+    assert test_plugin.get_value(variant) == 'PASS'
+
 
 def test_get_info_value():
     """
@@ -156,6 +175,73 @@ def test_get_info_value():
     variant = setup_variant(info='MQ=1,2', info_dict=info_dict)
     
     assert test_plugin.get_value(variant) == 2
+
+def test_get_flag_value():
+    """
+    Test if get value with a flag works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "flag"
+    info_dict = {'MQ': True}
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=[], info_key='MQ')
+    
+    variant = setup_variant(info='MQ', info_dict=info_dict)
+    
+    assert test_plugin.get_value(variant) == True
+
+def test_get_negative_flag_value():
+    """
+    Test if get value with a flag works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "flag"
+    info_dict = {}
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=[], info_key='MQ')
+    
+    variant = setup_variant(info='', info_dict=info_dict)
+    
+    assert test_plugin.get_value(variant) == False
+
+def test_info_value_float():
+    """
+    Test if if getting a float value works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "float"
+    separators = [',']
+    info_dict = {'TEST': ['0.1', '0.2']}
+    record_rule = 'min'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, info_key='TEST', 
+                        record_rule=record_rule)
+    
+    variant = setup_variant(info_dict=info_dict)
+    
+    assert test_plugin.get_value(variant) == 0.1
+
+def test_info_value_float_wrong_entry():
+    """
+    Test if if getting a float value works
+    """
+    name = "Example"
+    field = "INFO"
+    data_type = "float"
+    separators = [',']
+    info_dict = {'TEST': ['True']}
+    record_rule = 'min'
+    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
+                        separators=separators, info_key='TEST', 
+                        record_rule=record_rule)
+    
+    variant = setup_variant(info_dict=info_dict)
+    
+    assert test_plugin.get_value(variant) == None
+
 
 def test_complex_info_value():
     """
