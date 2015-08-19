@@ -165,7 +165,7 @@ class ConfigParser(configobj.ConfigObj):
             string_dict[string] = priority
 
         if len(string_dict) == 0:
-            raise ValueError("'string' entrys must have string rules defined")
+            raise ValidateError("'string' entrys must have string rules defined")
             
         return string_dict
             
@@ -276,7 +276,6 @@ class ConfigParser(configobj.ConfigObj):
         
         record_rule = vcf_section.get('record_rule', None)
         
-        
         if record_rule:
             if not record_rule in ['min', 'max']:
                 raise ValidateError(
@@ -287,61 +286,42 @@ class ConfigParser(configobj.ConfigObj):
         else:
             self.logger.info("Setting record rule to default: 'max'")
                 
-    #     try:
-    #         if not vcf_section['data_number'] in data_numbers:
-    #             raise ValidateError(
-    #                 "data_number has to be in %s\n"
-    #                 "Wrong data number in section: %s" %
-    #                 (data_numbers, section_name)
-    #                 )
-    #     except KeyError:
-    #         raise ValidateError(
-    #             "Vcf entrys have to refer to a data number in the"
-    #             " VCF with keyword 'data_number'.\n Missing data_number in "
-    #             "section: %s" % section_name
-    #             )
-    #
         return True
-    #
-    #
-    # def write_config(self, outfile):
-    #     """Write the config file to a new file"""
-    #     self._cfg.write(outfile)
 
-@click.command()
-@click.argument('config_file',
-                nargs=1,
-                type=click.Path(exists=True)
-)
-@click.option('-out', '--outfile',
-                nargs=1,
-                type=click.File('w')
-)
-@click.option('-l', '--loglevel',
-                type=click.Choice(['DEBUG', 'INFO', 'WARNING']),
-                default = 'INFO'
-)
-def read_config(config_file, outfile, loglevel):
-    """Parse the config file and print it to the output."""
-    
-    from extract_vcf import logger, init_log
-    init_log(logger, loglevel=loglevel)
-    
-    logger.info("Reading Config File: {0}".format(config_file))
-    
-    config_reader = ConfigParser(config_file)
-    
-    for plugin in config_reader.plugins:
-        logger.info("Found plugin:{0}".format(plugin))
-        logger.info("{0}: {1}".format(
-            plugin,config_reader.plugins[plugin])
-            )
-    
-    for category in config_reader.categories:
-        logger.info("Category {0}: {1}".format(
-            category, config_reader.categories[category]
-        ))
-
-    
-if __name__ == '__main__':
-    read_config()
+# @click.command()
+# @click.argument('config_file',
+#                 nargs=1,
+#                 type=click.Path(exists=True)
+# )
+# @click.option('-out', '--outfile',
+#                 nargs=1,
+#                 type=click.File('w')
+# )
+# @click.option('-l', '--loglevel',
+#                 type=click.Choice(['DEBUG', 'INFO', 'WARNING']),
+#                 default = 'INFO'
+# )
+# def read_config(config_file, outfile, loglevel):
+#     """Parse the config file and print it to the output."""
+#
+#     from extract_vcf import logger, init_log
+#     init_log(logger, loglevel=loglevel)
+#
+#     logger.info("Reading Config File: {0}".format(config_file))
+#
+#     config_reader = ConfigParser(config_file)
+#
+#     for plugin in config_reader.plugins:
+#         logger.info("Found plugin:{0}".format(plugin))
+#         logger.info("{0}: {1}".format(
+#             plugin,config_reader.plugins[plugin])
+#             )
+#
+#     for category in config_reader.categories:
+#         logger.info("Category {0}: {1}".format(
+#             category, config_reader.categories[category]
+#         ))
+#
+#
+# if __name__ == '__main__':
+#     read_config()

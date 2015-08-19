@@ -53,6 +53,22 @@ def test_empty_file():
     with pytest.raises(ValidateError):
         parser = ConfigParser(setup_config_file())
 
+def test_no_version_section():
+    """
+    Test if a raise exception when no version section
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    
+    config_file = NamedTemporaryFile(delete=False)
+    config_file.write("name = {0}\n".format(config_name))
+    config_file.write("version = {0}\n".format(config_version))
+    config_file.close()
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file.name)
+    
+
 def test_no_name():
     """
     Test if raise exception when no name
@@ -78,10 +94,12 @@ def test_wrong_version():
     config_name = 'example'
     config_version = 'example'
     with pytest.raises(ValidateError):
-        parser = ConfigParser(config_name, config_version)
+        parser = ConfigParser(setup_config_file(name=config_name, version=config_version))
 
 def test_simple_plugin():
-    """docstring for test_simple_plugin"""
+    """
+    Test if a simple plugin is parsed correct
+    """
     config_name = 'example'
     config_version = '0.1'
     config_lines = [
@@ -95,6 +113,94 @@ def test_simple_plugin():
     ]
     config_file = setup_config_file(config_lines=config_lines)
     parser = ConfigParser(config_file)
+    assert list(parser.plugins.keys()) == ["Plugin"]
+
+def test_no_separators():
+    """
+    Test if a raise error when no separators data type
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = integer\n"
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+def test_wrong_record_rule():
+    """
+    Test if a raise error when wrong record rule is used
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = integer\n"
+        "  separators = ','\n"
+        "  record_rule = medium\n"
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+
+def test_unknown_data_type():
+    """
+    Test if a raise error when unknown data type
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = test\n"
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+def test_category():
+    """
+    Test if the category feature works correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin1]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = flag\n"
+        "  category = test\n"
+        "[Plugin2]\n",
+        "  field = INFO\n"
+        "  info_key = MS\n"
+        "  data_type = flag\n"
+        "  category = test\n"
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    parser = ConfigParser(config_file)
+    assert "test" in parser.categories
     
 
 def test_filter_plugin():
@@ -256,7 +362,7 @@ def test_plugin_separators():
 
 def test_plugin_string_dict():
     """
-    Test if parses plugin correct
+    Test if parses string plugin works correct
     """
     config_name = 'example'
     config_version = '0.1'
@@ -285,9 +391,9 @@ def test_plugin_string_dict():
         'AD_dn': 1,
     }
 
-def test_plugin_string_dict_wrong_string_key():
+def test_string_plugin_no_priority():
     """
-    Test if parses plugin correct
+    Test if raise exception when string rules have no priority
     """
     config_name = 'example'
     config_version = '0.1'
@@ -301,8 +407,33 @@ def test_plugin_string_dict_wrong_string_key():
         "  data_type = string\n",
         "  separators = ','\n",
         "  [[AD]]\n",
-        "    value = AD\n",
-        "    priority = 2\n",
+        "    string = AD\n",
+        "  [[AD_dn]]\n",
+        "    string = AD_dn\n",
+        "    priority = 1\n",
+    ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+def test_string_plugin_no_priority():
+    """
+    Test if raise exception when string rules have no priority
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+        "  [[AD]]\n",
+        "    string = AD\n",
         "  [[AD_dn]]\n",
         "    string = AD_dn\n",
         "    priority = 1\n",
@@ -334,6 +465,52 @@ def test_plugin_string_non_integer_priority():
         "    string = AD_dn\n",
         "    priority = 1\n",
     ]
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+def test_string_plugin_no_string_rule():
+    """
+    Test if parses plugin correct
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+    ]
+    
+    config_file = setup_config_file(config_lines=config_lines)
+    
+    with pytest.raises(ValidateError):
+        parser = ConfigParser(config_file)
+
+def test_string_plugin_no_string_defined():
+    """
+    Test if raise error when no string is specified in string rule
+    """
+    config_name = 'example'
+    config_version = '0.1'
+    config_lines = [
+        "[Version]\n"
+        "  name = {0}\n".format(config_name),
+        "  version = {0}\n".format(config_version),
+        "[Plugin]\n",
+        "  field = INFO\n"
+        "  info_key = MQ\n"
+        "  data_type = string\n",
+        "  separators = ','\n",
+        "  [[AD]]\n",
+        "    priority = 2.5\n",
+    ]
+    
     config_file = setup_config_file(config_lines=config_lines)
     
     with pytest.raises(ValidateError):
