@@ -8,7 +8,11 @@ examples of config files can be found in ```extract_vcf/examples```
 
 ## Installation
 
-    pip install extract-vcf
+```
+git clone https://github.com/moonso/extract_vcf.git
+cd extract_vcf
+python setup.py install
+```
 
 ## Idea
 
