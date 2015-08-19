@@ -225,7 +225,7 @@ This is being done by forming a subsection with each possible string match and i
 
 In this case, if 'record_rule' is set to 'min' and a variant a annotation in the FILTER field that looks like:
 
-```ini
+```
 FILTER
 VQSRTrancheBOTH99.90to100.00;LowQual
 ```
