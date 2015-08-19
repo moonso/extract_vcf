@@ -8,7 +8,7 @@ from extract_vcf import get_annotation
 
 class Plugin(object):
     """Class for holding information about a plugin"""
-    def __init__(self, name, field, data_type, separators, info_key=None, 
+    def __init__(self, name, field, data_type, separators=[], info_key=None, 
                 category=None, csq_key=None, record_rule=None, 
                 string_rules={}):
         """

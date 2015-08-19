@@ -85,6 +85,34 @@ def test_inititating_info_plugin():
     assert test_plugin.separators == separators
     assert test_plugin.info_key == info_key
     
+def test_minimal_plugin():
+    """
+    Test if basic setup works
+    """
+    name = "Example"
+    field = "FILTER"
+    data_type = "flag"
+    test_plugin = Plugin(name=name, field=field, data_type=data_type)
+
+    entry = 'PASS'
+    variant = setup_variant(filt=entry)
+    
+    assert test_plugin.get_value(variant) == True
+
+def test_minimal_negative_plugin():
+    """
+    Test if basic setup works
+    """
+    name = "Example"
+    field = "FILTER"
+    data_type = "flag"
+    test_plugin = Plugin(name=name, field=field, data_type=data_type)
+
+    entry = '.'
+    variant = setup_variant(filt=entry)
+    
+    assert test_plugin.get_value(variant) == False
+
 
 def test_get_value():
     """

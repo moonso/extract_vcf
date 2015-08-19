@@ -1,0 +1,7 @@
+##fileformat=VCFv4.1
+##contig=<ID=1,length=249250621,assembly=b37>
+##INFO=<ID=CADD,Number=A,Type=Float,Description="The CADD relative score for this alternative.">
+##reference=file:///humgen/gsa-hpprojects/GATK/bundle/current/b37/human_g1k_v37.fasta
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	proband_2
+1	879537	.	T	C	100	PASS	MQ=1;CADD=12.5;EXAC=0.02	GT:AD:GQ	1/1:10,10:60
+1	879538	.	T	A	100	PASS	MQ=1;EXAC=0.001	GT:AD:GQ	1/1:10,10:60

@@ -20,6 +20,75 @@ Strings are a bit more complicated, here we will need rules for string matching.
 If no rules are used the entry will be extracted in its raw form.
 Flags will be returned as booleans.
 
+## Usage ##
+
+```
+> cat examples/smallest_test/small_config.ini
+[Version]
+  version = 0.1 # Float that describes the version number
+  name = example # String with the name of the config
+
+[CADD] # Plugin name
+  ### Mandatory ###
+  field = INFO # Anyone [ID, FILTER, QUAL, INFO]
+  data_type = float # [float, int, str, flag]
+  # Mandatory for any data type except flag
+  record_rule = max # Description of how multiple values should be treated. [min, max, eq]
+  separators = ',' # How is the field splitted, this is a list of separators
+  ### Mandatory for INFO fields ###
+  info_key = CADD # If field = INFO the info_key is mandatory
+  ### optional ###
+  description = The CADD predicted deleteriousness # A string that describes the plugin
+  category = deleteriousness # What category does the plugin belong to
+
+[Exac] # Plugin name
+  ### Mandatory ###
+  field = INFO # Anyone [ID, FILTER, QUAL, INFO]
+  data_type = float # [float, int, str, bool]
+  record_rule = min # Description of how multiple values should be treated. [min, max, eq]
+  separators = ',' # How is the field splitted, this is a list of separators
+  ### Mandatory for INFO fields ###
+  info_key = EXAC # If field = INFO the info_key is mandatory
+  ### optional ###
+  description = The EXAC frequency # A string that describes the plugin
+  category = allele_frequencies # What category does the plugin belong to
+> cat examples/smallest_test/small_test.vcf
+##fileformat=VCFv4.1
+##contig=<ID=1,length=249250621,assembly=b37>
+##INFO=<ID=CADD,Number=A,Type=Float,Description="The CADD relative score for this alternative.">
+##reference=file:///humgen/gsa-hpprojects/GATK/bundle/current/b37/human_g1k_v37.fasta
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	proband_2
+1	879537	.	T	C	100	PASS	MQ=1;CADD=12.5;EXAC=0.02	GT:AD:GQ	1/1:10,10:60
+1	879538	.	T	A	100	PASS	MQ=1;EXAC=0.001	GT:AD:GQ	1/1:10,10:60
+```
+
+
+```python
+> import extract_vcf
+> configs = extract_vcf.ConfigParser("examples/smallest_test/small_config.ini")
+> for plugin_name in configs.plugins:
+   print(plugin_name)
+   print(configs.plugins[plugin_name])
+Exac
+Plugin(name=Exac,field=INFO,data_type=float,separators=[u','],record_rule=min,info_key=EXAC,csq_key=None,category=allele_frequencies,string_rules={})
+CADD
+Plugin(name=CADD,field=INFO,data_type=float,separators=[u','],record_rule=max,info_key=CADD,csq_key=None,category=deleteriousness,string_rules={})
+> import vcf_parser
+> vcf = vcf_parser.VCFParser(infile="examples/smallest_test/small_test.vcf")
+> for variant in vcf:
+     print("Checking values for variant {0}:".format(variant["variant_id"]))
+     for plugin_name in configs.plugins:
+         plugin = configs.plugins[plugin_name]
+         value = plugin.get_value(variant)
+         print("\tPlugin name:{0}, value:{1}".format(plugin_name, value))
+Checking values for variant 1_879537_T_C:
+	Plugin name:Exac, value:0.02
+	Plugin name:CADD, value:12.5
+Checking values for variant 1_879538_T_A:
+	Plugin name:Exac, value:0.001
+	Plugin name:CADD, value:None
+```
+
 ## How to build a config file
 
 These files should be in the .ini format and follow the structure described in this section.
@@ -30,7 +99,7 @@ It is allowed to use nestled sections by increasing the number of brackets, like
 Then the information is specified in a key-value format like ```name = Example```.
  
 
-## Mandatory sections
+### Mandatory sections
 
 Each config file needs to have a **Version** section with a version and a name.
 
@@ -43,10 +112,14 @@ Example:
 ```
 
 
-### Mandatory fields
+## Plugins
 
-The following sections needs to have the structure described below.  
-Fields are described in sections so they always start with something that looks like
+The sections following the version section are describing the plugins.
+The section name is therefore the name of the plugin and the fields in the section describe rules for how the information should be handeld.
+
+### Mandatory fields ###
+
+As mentioned the section name describes the plugin.
 
 ```[1000G]```
 
@@ -69,7 +142,7 @@ So a minimal definition of a plugin could look like:
 
 This creates a plugin that would return True if a vcf variant have a entry that is not '.' in the ```ID``` field.
 
-### float, int, str ###
+#### float, int, str ####
 
 If the data type is float, int or str we need to specify a record rule and separators.
 The record rule define what value to choose when there can be alternatives, like:
@@ -85,7 +158,6 @@ There can be multiple separators, these are then described like:
 ```separators = ',',':'```
 
 ### INFO fields ###
-
 
 Info fields must have a info key that determines what info field to search for:
 
