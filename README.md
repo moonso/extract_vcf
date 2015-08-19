@@ -121,20 +121,24 @@ The section name is therefore the name of the plugin and the fields in the secti
 
 As mentioned the section name describes the plugin.
 
-```[1000G]```
+```ini
+[1000G]
+```
 
 Then we need to describe what vcf field to look at with
 
-```field = INFO # Anyone of [ID, FILTER, QUAL, INFO]```
-
+```ini
+field = INFO # Anyone of [ID, FILTER, QUAL, INFO]
+```
 The data type must be specified with
 
-```data_type = float # Anyone of [float, int, str, flag]```
-
+```ini
+data_type = float # Anyone of [float, int, str, flag]
+```
 
 So a minimal definition of a plugin could look like:
 
-```
+```ini
 [DBSNP]
   field = ID
   data_type = flag
@@ -147,25 +151,33 @@ This creates a plugin that would return True if a vcf variant have a entry that 
 If the data type is float, int or str we need to specify a record rule and separators.
 The record rule define what value to choose when there can be alternatives, like:
 
-```record_rule = min # Description of how multiple values should be treated. [min, max]```
+```ini
+record_rule = min # Description of how multiple values should be treated. [min, max]
+```
 
 and separators like:
 
-```separators = ','```
+```ini
+separators = ','
+```
 
 There can be multiple separators, these are then described like:
 
-```separators = ',',':'```
+```ini
+separators = ',',':'
+```
 
 ### INFO fields ###
 
 Info fields must have a info key that determines what info field to search for:
 
-```info_key = 1000G_freq```
+```ini
+info_key = 1000G_freq
+```
 
 to finish up on the 1000G example the whole plugin could look like:
 
-```
+```ini
 [1000G]
     field = INFO
     data_type = float
@@ -181,14 +193,16 @@ When sending a variant to this plugin it will search for the max value in the 10
 
 If ```info_key = CSQ``` we are searching in a vep annotation field and then need a vep key
 
-```csq_key = Feature_type```
+```ini
+csq_key = Feature_type
+```
 
 ### String matches ###
 
 If the values are strings we need some way to compare them to return the most interesting one.
 This is being done by forming a subsection with each possible string match and its priority like:
 
-```
+```ini
 [Filter]
   field = FILTER
   data_type = string
@@ -214,5 +228,5 @@ In this case, if 'record_rule' is set to 'min' and a variant a annotation in the
 ```
 FILTER
 VQSRTrancheBOTH99.90to100.00;LowQual
-```  
+```
 We would get 'LowQual' from the plugin.
