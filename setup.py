@@ -10,6 +10,7 @@ setup(
   description='Tool to extract information from vcf file.',
   author='Måns Magnusson',
   author_email='mans.magnusson@scilifelab.se',
+  license = 'MIT License',
   packages=find_packages(exclude=[
                                   'tests/',
                                   'scripts/'
