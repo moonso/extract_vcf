@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
 from setuptools import setup, find_packages
 
 
 setup(
   name='extract_vcf',
-  version='0.1',
+  version='0.1.1',
   url='https://github.com/moonso/extract_vcf',
   description='Tool to extract information from vcf file.',
   author='Måns Magnusson',

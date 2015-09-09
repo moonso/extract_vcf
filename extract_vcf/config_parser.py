@@ -33,7 +33,7 @@ Created by Måns Magnusson on 2015-04-16.
 Copyright (c) 2015 __MoonsoInc__. All rights reserved.
 """
 
-from __future__ import print_function, unicode_literals
+from __future__ import print_function
 
 import logging
 import click
