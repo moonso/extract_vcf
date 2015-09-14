@@ -24,6 +24,25 @@ Strings are a bit more complicated, here we will need rules for string matching.
 If no rules are used the entry will be extracted in its raw form.
 Flags will be returned as booleans.
 
+The score functions have two different methods to get information from the vcf file:
+
+```get_entry(csq_format=None, family_id=None)``` will return the raw entry from the vcf file splitted on the delimiters specified.
+There are two special cases, csq_format and family_id.
+	
+	- csq_format: takes a list with the csq columns for parsing the csq string annotated by vep
+	-family_id: Some annotations are on family level so we need to specify which family to search for. If no id is given the first entry 				found will be used.
+
+```get_value(csq_format=None, family_id=None)``` will return the value that meets the criteria specified in the config file.
+This function will only return one value so record rule and separators has to be specified.
+
+### float ###
+
+### int ###
+
+### str ###
+
+### flag ###
+
 ## Usage ##
 
 ```
@@ -56,6 +75,9 @@ Flags will be returned as booleans.
   ### optional ###
   description = The EXAC frequency # A string that describes the plugin
   category = allele_frequencies # What category does the plugin belong to
+
+
+
 > cat examples/smallest_test/small_test.vcf
 ##fileformat=VCFv4.1
 ##contig=<ID=1,length=249250621,assembly=b37>

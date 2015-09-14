@@ -1,13 +1,14 @@
 from logging import getLogger
 import operator
 import click
+import re
 
-from extract_vcf import get_annotation
+from extract_vcf import split_strings
 
 class Plugin(object):
     """Class for holding information about a plugin"""
-    def __init__(self, name, field, data_type, separators=[], info_key=None, 
-                category=None, csq_key=None, record_rule=None, 
+    def __init__(self, name, field, data_type=None, separators=[], info_key=None, 
+                category=None, csq_key=None, record_rule=None, gt_key=None,
                 string_rules={}):
         """
         The plugin class hold plugin information. The main task for a plugin
@@ -46,6 +47,7 @@ class Plugin(object):
         self.logger.info("Initiating plugin with name: {0}".format(
             self.name
         ))
+        self.regex = None
         self.field = field
         self.logger.info("Field: {0}".format(self.field))
         
@@ -70,62 +72,186 @@ class Plugin(object):
         self.string_rules = string_rules
         self.logger.info("String rules: {0}".format(self.string_rules))
         
-
-    def get_value(self, variant):
+        self.gt_key = gt_key
+        self.logger.info("gt_key: {0}".format(self.gt_key))
+        
+        if self.field == 'INFO':
+            regex_string = r"""{0}=(?P<info>[^;\s]+)""".format(self.info_key)
+            self.regex = re.compile(regex_string, re.VERBOSE)
+    
+    def get_entry(self, variant_line, vcf_header=None, csq_format=None, 
+                 family_id=None, individual_id=None):
+        """Return the splitted entry from a variant line
+            
+            Args:
+                variant_line (str): A vcf formated variant line
+                vcf_header (list): A list with the vcf header line
+                csq_format (list): A list with the csq headers
+                family_id (str): The family id that should be searched. If no id 
+                                 the first family found will be used
+            
+            Returns:
+                entry (list): A list with the splitted entry
+        """
+        raw_entry = self.get_raw_entry(variant_line, vcf_header=vcf_header, 
+                    individual_id=individual_id)
+        entry = []
+        if self.field in ['CHROM', 'POS', 'REF', 'QUAL']:
+            # We know these fields allways has one entry
+            entry = [raw_entry]
+        elif self.field in ['ID', 'FILTER']:
+            # We know ID is allways splitted on ';'
+            entry = raw_entry.split(';')
+        elif self.field == 'ALT':
+            # We know ALT is allways splitted on ','
+            entry = raw_entry.split(',')
+        elif self.field == 'FORMAT':
+            entry = raw_entry.split(':')
+        elif self.field == 'INFO':
+            # We are going to treat csq fields separately
+            if self.info_key == 'CSQ':
+                if not csq_format:
+                    raise IOError("If CSQ the csq format must be provided")
+                if not self.csq_key:
+                    raise IOError("If CSQ a csq key must be provided")
+                for i, head in enumerate(csq_format):
+                    if head == self.csq_key:
+                        # This is the csq entry we are looking for
+                        csq_column = i
+                # CSQ entries are allways splitted on ','
+                for csq_entry in raw_entry.split(','):
+                    entry += split_strings(csq_entry.split('|')[csq_column], self.separators)
+            else:
+                entry = split_strings(raw_entry, self.separators)
+        
+        elif self.field == 'sample_id':
+            if not self.separators:
+                entry = split_strings(raw_entry, '/')
+                #If variant calls are phased we need to split on '|'
+                if len(entry) == 1:
+                    entry = split_strings(raw_entry, '|')
+            else:
+                entry = split_strings(raw_entry, self.separators)
+        
+        return entry
+    
+    def get_raw_entry(self, variant_line, vcf_header=None, individual_id=None):
+        """Return the raw entry from the vcf field
+            
+            Args:
+                variant_line (str): A vcf formated variant line
+                vcf_header (list): A list with the vcf header line
+                individual_id (str): The individual id to get gt call
+            Returns:
+                The raw entry found in variant line
+        """
+        variant_line = variant_line.rstrip()
+        entry = '.'
+        if self.field == 'CHROM':
+            entry = variant_line.split()[0]
+        elif self.field == 'POS':
+            entry = variant_line.split()[1]
+        elif self.field == 'ID':
+            entry = variant_line.split()[2]
+        elif self.field == 'REF':
+            entry = variant_line.split()[3]
+        elif self.field == 'ALT':
+            entry = variant_line.split()[4]
+        elif self.field == 'QUAL':
+            entry = variant_line.split()[5]
+        elif self.field == 'FILTER':
+            entry = variant_line.split()[6]
+        
+        elif self.field == 'INFO':
+            matches = self.regex.search(variant_line)
+            if matches:
+                entry = matches.group('info')
+        
+        elif self.field == 'FORMAT':
+            entry = variant_line.split()[8]
+        
+        elif self.field == "sample_id":
+            if not vcf_header:
+                raise IOError("If 'sample_id' the vcf header must be provided")
+            if not individual_id:
+                raise IOError("If 'sample_id' a individual id must be provided")
+            if not self.gt_key:
+                raise IOError("If 'sample_id' a genotype key must be provided")
+            
+            for i, head in enumerate(vcf_header):
+                if head == individual_id:
+                    entry_dict = dict(zip(
+                        variant_line.split()[8].split(':'), variant_line.split()[i].split(':')
+                    ))
+                    entry = entry_dict.get(self.gt_key, '.')
+        
+        return entry
+    
+    def get_value(self, variant_line, vcf_header=None, csq_format=None, 
+                 family_id=None, individual_id=None):
         """
         Return the value as specified by plugin
         
         Get value will return one value or None if no correct value is found.
         
         Arguments:
-            variant (dict): A vcf_parser style variant dictionary
+            variant_line (str): A vcf_parser style variant dictionary
         
         Returns:
             value (str): A string that represents the correct value
         
         """
         value = None
-        # Get the correct annotation for the record
-        annotations = get_annotation(
-                        variant = variant,
-                        field = self.field,
-                        data_type = self.data_type,
-                        separators = self.separators,
-                        info_key=self.info_key,
-                        csq_key=self.csq_key
-                        )
-        # Flags do not need a record type
+        
         if self.data_type == 'flag':
-            if annotations:
-                value = True
+            if self.field == 'INFO':
+                if self.info_key in variant_line:
+                    value = True
             else:
-                value = False
+                if self.get_raw_entry(
+                    variant_line, 
+                    vcf_header=vcf_header, 
+                    individual_id=individual_id) != '.':
+                    value = True
         
         # If we have a record rule we need to return the correct value
-        elif self.record_rule and annotations:
+        elif self.record_rule:
             
             if self.data_type == 'string':
-                string_dict = {}
                 
-                for entry in annotations:
-                    if entry in self.string_rules:
-                        string_dict[entry] = self.string_rules[entry]
-                
-                sorted_string_dict = sorted(
-                    string_dict.items(), key=operator.itemgetter(1)
+                raw_entry = self.get_raw_entry(
+                    variant_line, 
+                    vcf_header=vcf_header, 
+                    individual_id=individual_id
                 )
-                if len(sorted_string_dict) > 0:
-                    
-                    if self.record_rule == 'max':
-                        value = sorted_string_dict[-1][0]
+                
+                if self.record_rule == 'max':
+                    sorted_strings = sorted(
+                        self.string_rules.items(), 
+                        key=operator.itemgetter(1), 
+                        reverse=True
+                    )
+                
+                if self.record_rule == 'min':
+                    sorted_strings = sorted(
+                        self.string_rules.items(), 
+                        key=operator.itemgetter(1)
+                    )
+                
+                for string_rule in sorted_strings:
+                    if string_rule[0] in raw_entry:
+                        value = string_rule[0]
+                        break
             
-                    elif self.record_rule == 'min':
-                        value = sorted_string_dict[0][0]
-            # If there is no record rule
             else:
                 typed_annotations = []
                 
-                for value in annotations:
+                for value in self.get_entry(
+                    variant_line, 
+                    vcf_header=vcf_header, 
+                    csq_format=csq_format, 
+                    family_id=family_id, 
+                    individual_id=individual_id):
                 
                     if self.data_type == 'float':
                         try:
@@ -153,9 +279,25 @@ class Plugin(object):
         # Here the data_type is not flag, and there is no record rule
         else:
             # We will just return the first annotation found
-            if annotations:
-                value = annotations[0]
+            value = self.get_entry(
+                    variant_line, 
+                    vcf_header=vcf_header, 
+                    csq_format=csq_format, 
+                    family_id=family_id, 
+                    individual_id=individual_id)[0]
             
+            if self.data_type == 'float':
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass
+                
+            elif self.data_type == 'integer':
+                try:
+                    value = int(value)
+                except ValueError:
+                    pass
+        
         return value
     
     def __repr__(self):
