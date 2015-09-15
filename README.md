@@ -2,7 +2,7 @@
 
 Many times one would like to extract values from different fields of a vcf file. There is no simple way to achieve this since the annotations can look very different, sometimes they are a flag, sometimes there are multiple values etc.
 
-extract_vcf takes a simple .ini config file that specifies rules of how the information should be treated and build objects that return the correct values.
+extract_vcf takes a simple .ini config file that specifies rules of how the information should be treated and build objects called plugins that return the correct values.
 
 examples of config files can be found in ```extract_vcf/examples```
 
@@ -18,15 +18,21 @@ python setup.py install
 
 This package is made for extracting data from vcf files. 
 Each type of data is described in a config file and a Plugin object will be created for each type of data.  
-The plugin can be given data for a variant and based on the rules it returns the proper value.
+The plugin are given a vcf variant line, and based on the rules it returns the proper value.
 For integers and floats it is easy to understand rules like 'min' and 'max'.
-Strings are a bit more complicated, here we will need rules for string matching. So for possible values of a string one can specify a score for each value, then we can apply rules such as min and max. 
+Strings are a bit more complicated, here we will need rules for string matching. So for possible values of a string one can specify a priority for each value, then we can apply rules such as min and max. 
 If no rules are used the entry will be extracted in its raw form.
 Flags will be returned as booleans.
 
-The score functions have two different methods to get information from the vcf file:
+The plugins have three different methods to get information from the vcf file:
 
-```get_entry(csq_format=None, family_id=None)``` will return the raw entry from the vcf file splitted on the delimiters specified.
+### ```get_raw_entry(variant_line, variant_line, vcf_header=None, individual_id=None)``` ###
+
+Returns the raw entry from the correct vcf field
+
+### ```get_entry(variant_line, vcf_header=None, csq_format=None, family_id=None, individual_id=None)``` ###
+
+Returns a list with the values splitted according to the delimiters specified.
 There are two special cases, csq_format and family_id.
 	
 	- csq_format: takes a list with the csq columns for parsing the csq string annotated by vep
@@ -35,15 +41,6 @@ There are two special cases, csq_format and family_id.
 ```get_value(csq_format=None, family_id=None)``` will return the value that meets the criteria specified in the config file.
 This function will only return one value so record rule and separators has to be specified.
 
-### float ###
-
-### int ###
-
-### str ###
-
-### flag ###
-
-## Usage ##
 
 ```
 > cat examples/smallest_test/small_config.ini
