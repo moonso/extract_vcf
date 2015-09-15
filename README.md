@@ -2,7 +2,7 @@
 
 Many times one would like to extract values from different fields of a vcf file. There is no simple way to achieve this since the annotations can look very different, sometimes they are a flag, sometimes there are multiple values etc.
 
-extract_vcf takes a simple .ini config file that specifies rules of how the information should be treated and build objects that return the correct values.
+extract_vcf takes a simple .ini config file that specifies rules of how the information should be treated and build objects called plugins that return the correct values.
 
 examples of config files can be found in ```extract_vcf/examples```
 
@@ -18,13 +18,29 @@ python setup.py install
 
 This package is made for extracting data from vcf files. 
 Each type of data is described in a config file and a Plugin object will be created for each type of data.  
-The plugin can be given data for a variant and based on the rules it returns the proper value.
+The plugin are given a vcf variant line, and based on the rules it returns the proper value.
 For integers and floats it is easy to understand rules like 'min' and 'max'.
-Strings are a bit more complicated, here we will need rules for string matching. So for possible values of a string one can specify a score for each value, then we can apply rules such as min and max. 
+Strings are a bit more complicated, here we will need rules for string matching. So for possible values of a string one can specify a priority for each value, then we can apply rules such as min and max. 
 If no rules are used the entry will be extracted in its raw form.
 Flags will be returned as booleans.
 
-## Usage ##
+The plugins have three different methods to get information from the vcf file:
+
+### ```get_raw_entry(variant_line, variant_line, vcf_header=None, individual_id=None)``` ###
+
+Returns the raw entry from the correct vcf field
+
+### ```get_entry(variant_line, vcf_header=None, csq_format=None, family_id=None, individual_id=None)``` ###
+
+Returns a list with the values splitted according to the delimiters specified.
+There are two special cases, csq_format and family_id.
+	
+	- csq_format: takes a list with the csq columns for parsing the csq string annotated by vep
+	-family_id: Some annotations are on family level so we need to specify which family to search for. If no id is given the first entry 				found will be used.
+
+```get_value(csq_format=None, family_id=None)``` will return the value that meets the criteria specified in the config file.
+This function will only return one value so record rule and separators has to be specified.
+
 
 ```
 > cat examples/smallest_test/small_config.ini
@@ -56,6 +72,9 @@ Flags will be returned as booleans.
   ### optional ###
   description = The EXAC frequency # A string that describes the plugin
   category = allele_frequencies # What category does the plugin belong to
+
+
+
 > cat examples/smallest_test/small_test.vcf
 ##fileformat=VCFv4.1
 ##contig=<ID=1,length=249250621,assembly=b37>
@@ -77,14 +96,14 @@ Exac
 Plugin(name=Exac,field=INFO,data_type=float,separators=[u','],record_rule=min,info_key=EXAC,csq_key=None,category=allele_frequencies,string_rules={})
 CADD
 Plugin(name=CADD,field=INFO,data_type=float,separators=[u','],record_rule=max,info_key=CADD,csq_key=None,category=deleteriousness,string_rules={})
-> import vcf_parser
-> vcf = vcf_parser.VCFParser(infile="examples/smallest_test/small_test.vcf")
-> for variant in vcf:
-     print("Checking values for variant {0}:".format(variant["variant_id"]))
-     for plugin_name in configs.plugins:
-         plugin = configs.plugins[plugin_name]
-         value = plugin.get_value(variant)
-         print("\tPlugin name:{0}, value:{1}".format(plugin_name, value))
+> with open("examples/smallest_test/small_test.vcf", 'r') as f
+	for line in f:
+		if not line.startswith('#'):
+     	for plugin_name in configs.plugins:
+         	plugin = configs.plugins[plugin_name]
+         	value = plugin.get_value(variant)
+         	print("\tPlugin name:{0}, value:{1}".format(plugin_name, value))
+
 Checking values for variant 1_879537_T_C:
 	Plugin name:Exac, value:0.02
 	Plugin name:CADD, value:12.5
