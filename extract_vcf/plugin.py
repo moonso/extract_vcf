@@ -96,42 +96,45 @@ class Plugin(object):
         raw_entry = self.get_raw_entry(variant_line, vcf_header=vcf_header, 
                     individual_id=individual_id)
         entry = []
-        if self.field in ['CHROM', 'POS', 'REF', 'QUAL']:
-            # We know these fields allways has one entry
-            entry = [raw_entry]
-        elif self.field in ['ID', 'FILTER']:
-            # We know ID is allways splitted on ';'
-            entry = raw_entry.split(';')
-        elif self.field == 'ALT':
-            # We know ALT is allways splitted on ','
-            entry = raw_entry.split(',')
-        elif self.field == 'FORMAT':
-            entry = raw_entry.split(':')
-        elif self.field == 'INFO':
-            # We are going to treat csq fields separately
-            if self.info_key == 'CSQ':
-                if not csq_format:
-                    raise IOError("If CSQ the csq format must be provided")
-                if not self.csq_key:
-                    raise IOError("If CSQ a csq key must be provided")
-                for i, head in enumerate(csq_format):
-                    if head == self.csq_key:
-                        # This is the csq entry we are looking for
-                        csq_column = i
-                # CSQ entries are allways splitted on ','
-                for csq_entry in raw_entry.split(','):
-                    entry += split_strings(csq_entry.split('|')[csq_column], self.separators)
-            else:
-                entry = split_strings(raw_entry, self.separators)
         
-        elif self.field == 'sample_id':
-            if not self.separators:
-                entry = split_strings(raw_entry, '/')
-                #If variant calls are phased we need to split on '|'
-                if len(entry) == 1:
-                    entry = split_strings(raw_entry, '|')
-            else:
-                entry = split_strings(raw_entry, self.separators)
+        if raw_entry:
+            
+            if self.field in ['CHROM', 'POS', 'REF', 'QUAL']:
+                # We know these fields allways has one entry
+                entry = [raw_entry]
+            elif self.field in ['ID', 'FILTER']:
+                # We know ID is allways splitted on ';'
+                entry = raw_entry.split(';')
+            elif self.field == 'ALT':
+                # We know ALT is allways splitted on ','
+                entry = raw_entry.split(',')
+            elif self.field == 'FORMAT':
+                entry = raw_entry.split(':')
+            elif self.field == 'INFO':
+                # We are going to treat csq fields separately
+                if self.info_key == 'CSQ':
+                    if not csq_format:
+                        raise IOError("If CSQ the csq format must be provided")
+                    if not self.csq_key:
+                        raise IOError("If CSQ a csq key must be provided")
+                    for i, head in enumerate(csq_format):
+                        if head == self.csq_key:
+                            # This is the csq entry we are looking for
+                            csq_column = i
+                    # CSQ entries are allways splitted on ','
+                    for csq_entry in raw_entry.split(','):
+                        entry += split_strings(csq_entry.split('|')[csq_column], self.separators)
+                else:
+                    entry = split_strings(raw_entry, self.separators)
+            
+            elif self.field == 'sample_id':
+                if not self.separators:
+                    entry = split_strings(raw_entry, '/')
+                    #If variant calls are phased we need to split on '|'
+                    if len(entry) == 1:
+                        entry = split_strings(raw_entry, '|')
+                else:
+                    entry = split_strings(raw_entry, self.separators)
         
         return entry
     
@@ -146,7 +149,7 @@ class Plugin(object):
                 The raw entry found in variant line
         """
         variant_line = variant_line.rstrip()
-        entry = '.'
+        entry = None
         if self.field == 'CHROM':
             entry = variant_line.split()[0]
         elif self.field == 'POS':
