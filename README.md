@@ -96,14 +96,14 @@ Exac
 Plugin(name=Exac,field=INFO,data_type=float,separators=[u','],record_rule=min,info_key=EXAC,csq_key=None,category=allele_frequencies,string_rules={})
 CADD
 Plugin(name=CADD,field=INFO,data_type=float,separators=[u','],record_rule=max,info_key=CADD,csq_key=None,category=deleteriousness,string_rules={})
-> import vcf_parser
-> vcf = vcf_parser.VCFParser(infile="examples/smallest_test/small_test.vcf")
-> for variant in vcf:
-     print("Checking values for variant {0}:".format(variant["variant_id"]))
-     for plugin_name in configs.plugins:
-         plugin = configs.plugins[plugin_name]
-         value = plugin.get_value(variant)
-         print("\tPlugin name:{0}, value:{1}".format(plugin_name, value))
+> with open("examples/smallest_test/small_test.vcf", 'r') as f
+	for line in f:
+		if not line.startswith('#'):
+     	for plugin_name in configs.plugins:
+         	plugin = configs.plugins[plugin_name]
+         	value = plugin.get_value(variant)
+         	print("\tPlugin name:{0}, value:{1}".format(plugin_name, value))
+
 Checking values for variant 1_879537_T_C:
 	Plugin name:Exac, value:0.02
 	Plugin name:CADD, value:12.5
