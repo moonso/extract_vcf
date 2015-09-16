@@ -1,7 +1,6 @@
 from logging import getLogger
 import operator
 import click
-import re
 
 from extract_vcf import split_strings
 
@@ -75,13 +74,10 @@ class Plugin(object):
         self.gt_key = gt_key
         self.logger.info("gt_key: {0}".format(self.gt_key))
         
-        if self.field == 'INFO':
-            regex_string = r"""{0}=(?P<info>[^;\s]+)""".format(self.info_key)
-            self.regex = re.compile(regex_string, re.VERBOSE)
     
-    def get_entry(self, variant_line, vcf_header=None, csq_format=None, 
-                 family_id=None, individual_id=None):
-        """Return the splitted entry from a variant line
+    def get_entry(self, variant_line=None, variant_dict=None, raw_entry=None, 
+    vcf_header=None, csq_format=None, family_id=None, individual_id=None):
+        """Return the splitted entry from variant information
             
             Args:
                 variant_line (str): A vcf formated variant line
@@ -93,8 +89,14 @@ class Plugin(object):
             Returns:
                 entry (list): A list with the splitted entry
         """
-        raw_entry = self.get_raw_entry(variant_line, vcf_header=vcf_header, 
-                    individual_id=individual_id)
+        if not raw_entry:
+            raw_entry = self.get_raw_entry(
+                variant_line=variant_line, 
+                variant_dict=variant_dict, 
+                vcf_header=vcf_header, 
+                individual_id=individual_id, 
+            )
+        
         entry = []
         
         if raw_entry:
@@ -102,14 +104,18 @@ class Plugin(object):
             if self.field in ['CHROM', 'POS', 'REF', 'QUAL']:
                 # We know these fields allways has one entry
                 entry = [raw_entry]
+            
             elif self.field in ['ID', 'FILTER']:
                 # We know ID is allways splitted on ';'
                 entry = raw_entry.split(';')
+            
             elif self.field == 'ALT':
                 # We know ALT is allways splitted on ','
                 entry = raw_entry.split(',')
+            
             elif self.field == 'FORMAT':
                 entry = raw_entry.split(':')
+            
             elif self.field == 'INFO':
                 # We are going to treat csq fields separately
                 if self.info_key == 'CSQ':
@@ -138,7 +144,7 @@ class Plugin(object):
         
         return entry
     
-    def get_raw_entry(self, variant_line, vcf_header=None, individual_id=None):
+    def get_raw_entry(self, variant_line=None, variant_dict=None, vcf_header=None, individual_id=None):
         """Return the raw entry from the vcf field
             
             Args:
@@ -148,57 +154,113 @@ class Plugin(object):
             Returns:
                 The raw entry found in variant line
         """
-        variant_line = variant_line.rstrip()
+        if variant_line:
+            variant_line = variant_line.rstrip().split()
+        
         entry = None
+        
         if self.field == 'CHROM':
-            entry = variant_line.split()[0]
+            if variant_line:
+                entry = variant_line[0]
+            elif variant_dict:
+                entry = variant_dict['CHROM']
+                
         elif self.field == 'POS':
-            entry = variant_line.split()[1]
+            if variant_line:
+                entry = variant_line[1]
+            elif variant_dict:
+                entry = variant_dict['POS']
+            
         elif self.field == 'ID':
-            entry = variant_line.split()[2]
+            if variant_line:
+                entry = variant_line[2]
+            elif variant_dict:
+                entry = variant_dict['ID']
+        
         elif self.field == 'REF':
-            entry = variant_line.split()[3]
+            if variant_line:
+                entry = variant_line[3]
+            elif variant_dict:
+                entry = variant_dict['REF']
+        
         elif self.field == 'ALT':
-            entry = variant_line.split()[4]
+            if variant_line:
+                entry = variant_line[4]
+            elif variant_dict:
+                entry = variant_dict['ALT']
+        
         elif self.field == 'QUAL':
-            entry = variant_line.split()[5]
+            if variant_line:
+                entry = variant_line[5]
+            elif variant_dict:
+                entry = variant_dict['QUAL']
+        
         elif self.field == 'FILTER':
-            entry = variant_line.split()[6]
+            if variant_line:
+                entry = variant_line[6]
+            elif variant_dict:
+                entry = variant_dict['FILTER']
         
         elif self.field == 'INFO':
-            matches = self.regex.search(variant_line)
-            if matches:
-                entry = matches.group('info')
+            if variant_line:
+                for info_annotation in variant_line[7].split(';'):
+                    splitted_annotation = info_annotation.split('=')
+                    if self.info_key == splitted_annotation[0]:
+                        if len(splitted_annotation) == 2:
+                            entry = splitted_annotation[1]
+            elif variant_dict:
+                entry = variant_dict.get('info_dict',{}).get(self.info_key, None)
         
         elif self.field == 'FORMAT':
-            entry = variant_line.split()[8]
+            if variant_line:
+                entry = variant_line[8]
+            elif variant_dict:
+                entry = variant_dict['FORMAT']
         
         elif self.field == "sample_id":
-            if not vcf_header:
-                raise IOError("If 'sample_id' the vcf header must be provided")
+            
             if not individual_id:
                 raise IOError("If 'sample_id' a individual id must be provided")
             if not self.gt_key:
                 raise IOError("If 'sample_id' a genotype key must be provided")
             
-            for i, head in enumerate(vcf_header):
-                if head == individual_id:
-                    entry_dict = dict(zip(
-                        variant_line.split()[8].split(':'), variant_line.split()[i].split(':')
-                    ))
-                    entry = entry_dict.get(self.gt_key, '.')
+            if variant_line:
+                if not vcf_header:
+                    raise IOError("If 'sample_id' the vcf header must be provided")
+                
+                format_info = variant_line[8]
+                
+                for i, head in enumerate(vcf_header):
+                    if head == individual_id:
+                        raw_gt_call = variant_line[i]
+            elif variant_dict:
+                format_info = variant_dict['FORMAT']
+                raw_gt_call = variant_dict[individual_id]
+            
+            entry_dict = dict(zip(
+                format_info.split(':'), raw_gt_call.split(':')
+            ))
+            entry = entry_dict.get(self.gt_key, '.')
         
         return entry
     
-    def get_value(self, variant_line, vcf_header=None, csq_format=None, 
-                 family_id=None, individual_id=None):
+    def get_value(self, variant_line=None, variant_dict=None, entry=None, 
+        raw_entry=None, vcf_header=None, csq_format=None, family_id=None, 
+        individual_id=None):
         """
         Return the value as specified by plugin
         
         Get value will return one value or None if no correct value is found.
         
         Arguments:
-            variant_line (str): A vcf_parser style variant dictionary
+            variant_line (str): A vcf variant line
+            variant_dict (dict): A variant dictionary
+            entry (list): A splitted entry
+            raw_entry (str): The raw entry from the vcf file
+            vcf_header (list): The vcf header line with sample ids
+            csq_format (list): The CSQ format
+            family_id (str): The family id
+            individual_id (str): The individual id
         
         Returns:
             value (str): A string that represents the correct value
@@ -206,15 +268,25 @@ class Plugin(object):
         """
         value = None
         
+        raw_entry = self.get_raw_entry(
+            variant_line = variant_line, 
+            variant_dict = variant_dict, 
+            vcf_header=vcf_header, 
+            individual_id=individual_id
+        )
+        
         if self.data_type == 'flag':
             if self.field == 'INFO':
-                if self.info_key in variant_line:
-                    value = True
+                if variant_line:
+                    for info_entry in variant_line.split()[7].split(';'):
+                        if self.info_key == info_entry.split('=')[0]:
+                            value = True
+                
+                elif variant_dict:
+                    if self.info_key in variant_dict.get('info_dict',{}):
+                        value = True
             else:
-                if self.get_raw_entry(
-                    variant_line, 
-                    vcf_header=vcf_header, 
-                    individual_id=individual_id) != '.':
+                if raw_entry != '.':
                     value = True
         
         # If we have a record rule we need to return the correct value
@@ -222,35 +294,31 @@ class Plugin(object):
             
             if self.data_type == 'string':
                 
-                raw_entry = self.get_raw_entry(
-                    variant_line, 
-                    vcf_header=vcf_header, 
-                    individual_id=individual_id
-                )
-                
-                if self.record_rule == 'max':
-                    sorted_strings = sorted(
-                        self.string_rules.items(), 
-                        key=operator.itemgetter(1), 
-                        reverse=True
-                    )
-                
-                if self.record_rule == 'min':
-                    sorted_strings = sorted(
-                        self.string_rules.items(), 
-                        key=operator.itemgetter(1)
-                    )
-                
-                for string_rule in sorted_strings:
-                    if string_rule[0] in raw_entry:
-                        value = string_rule[0]
-                        break
+                if raw_entry:
+                    if self.record_rule == 'max':
+                        sorted_strings = sorted(
+                            self.string_rules.items(), 
+                            key=operator.itemgetter(1), 
+                            reverse=True
+                        )
+                    
+                    if self.record_rule == 'min':
+                        sorted_strings = sorted(
+                            self.string_rules.items(), 
+                            key=operator.itemgetter(1)
+                        )
+                    
+                    for string_rule in sorted_strings:
+                        if string_rule[0] in raw_entry:
+                            value = string_rule[0]
+                            break
             
             else:
+                
                 typed_annotations = []
                 
                 for value in self.get_entry(
-                    variant_line, 
+                    raw_entry=raw_entry,
                     vcf_header=vcf_header, 
                     csq_format=csq_format, 
                     family_id=family_id, 
@@ -283,7 +351,7 @@ class Plugin(object):
         else:
             # We will just return the first annotation found
             value = self.get_entry(
-                    variant_line, 
+                    raw_entry=raw_entry,
                     vcf_header=vcf_header, 
                     csq_format=csq_format, 
                     family_id=family_id, 
