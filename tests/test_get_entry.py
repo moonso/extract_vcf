@@ -1,12 +1,6 @@
 from extract_vcf import Plugin
 import pytest
 
-variant = "2    191964633    rs7574865    T    G    1258.77    PASS;NOT_PASS    1000GAF=0.744609;AC=2;AF=1.00;AN=2;CLNSIG=255,10;CSQ=G|ENSG00000138378|ENST00000358470|Transcript|intron_variant||||||||-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000351255|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&C9JFG0_HUMAN&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000358470.4:c.274-23582A>C|||||,G|ENSG00000138378|ENST00000392320|Transcript|intron_variant||||||||-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000376134|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&C9JFG0_HUMAN&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000392320.2:c.274-23582A>C|||||,G|ENSG00000138378|ENST00000495326|Transcript|intron_variant&non_coding_transcript_variant||||||||-1|STAT4|HGNC|11365|retained_intron||||||||||3/3||ENST00000495326.1:n.344-23582A>C|||||,G|ENSG00000138378|ENST00000495849|Transcript|intron_variant&non_coding_transcript_variant||||||||-1|STAT4|HGNC|11365|retained_intron||||||||||3/20||ENST00000495849.1:n.342-23582A>C|||||,G|ENSG00000138378|ENST00000413064|Transcript|intron_variant||||||||-1|STAT4|HGNC|11365|protein_coding|||ENSP00000403238||C9JFG0_HUMAN|UPI000188188B||||3/3||ENST00000413064.1:c.193-23582A>C|||||;Clinical_db_gene_annotation=OMIM-141201,FullList;DB;DP=35;Dbsnp129LCAF=0.2493;Ensembl_gene_id=ENSG00000138378;Ensembl_transcript_to_refseq_transcript=STAT4:ENST00000358470>NM_001243835/XM_005246817|ENST00000392320>NM_003151|ENST00000409995|ENST00000413064|ENST00000432798|ENST00000450994|ENST00000463951|ENST00000470708|ENST00000495326|ENST00000495849;FS=0.000;GQ_MEAN=105.00;Gene_description=STAT4:signal_transducer_and_activator_of_transcription_4;GeneticRegionAnnotation=STAT4:G|ncRNA;HGNC_symbol=STAT4;HGVScp=G:STAT4:ENST00000358470:intron_variant:s.-:i.3/23:c.274-23582A>C,G:STAT4:ENST00000392320:intron_variant:s.-:i.3/23:c.274-23582A>C,G:STAT4:ENST00000495326:intron_variant&non_coding_transcript_variant:s.-:i.3/3:n.344-23582A>C,G:STAT4:ENST00000495849:intron_variant&non_coding_transcript_variant:s.-:i.3/20:n.342-23582A>C,G:STAT4:ENST00000413064:intron_variant:s.-:i.3/3:c.193-23582A>C;MLEAC=2;MLEAF=1.00;MQ=60.00;MQ0=0;MostSevereConsequence=STAT4:G|non_coding_transcript_variant;NCC=0;OMIM_morbid=STAT4:600558;POSITIVE_TRAIN_SITE;Phenotypic_disease_model=STAT4:612253;QD=28.42;SOR=1.148;SnpSift_AF=0.744609;SnpSift_CAF=[0.2493,0.7507];SnpSift_CLNSIG=255;VQSLOD=4.27;culprit=FS    GT:AD:GQ:PL    1/1:0,35:99:1287,105,0"
-
-phased_variant = "2    191964633    rs7574865    T    G    1258.77    PASS;NOT_PASS    1000GAF=0.744609;GeneticModels=1:AD|AD_dn    GT:AD:GQ:PL    1|1:0,35:99:1287,105,0"
-
-multi_allele_variant = "2    191964633    rs7574865    T    G,A    1258.77    PASS;NOT_PASS    1000GAF=0.744609,0.02    GT:AD:GQ:PL    1/2:0,35:99:1287,105,0"
-
 csq_format = ["Allele", "Gene", "Feature", "Feature_type", "Consequence", 
 "cDNA_position", "CDS_position", "Protein_position", "Amino_acids", "Codons",
  "Existing_variation", "DISTANCE", "STRAND", "SYMBOL", "SYMBOL_SOURCE", "HGNC_ID",
@@ -14,104 +8,267 @@ csq_format = ["Allele", "Gene", "Feature", "Feature_type", "Consequence",
   "PolyPhen", "EXON", "INTRON", "DOMAINS", "HGVSc", "HGVSp", "MOTIF_NAME", 
   "MOTIF_POS", "HIGH_INF_POS", "MOTIF_SCORE_CHANGE"]
 
+vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
+
+def get_variant_line(chrom='2', pos='191964633', db_id='rs7574865', ref='T', 
+alt='G', qual='1258.77', filt="PASS", info="", form="GT:AD:GQ:PL", 
+gt_calls={'ADM1003A3': "1/1:0,35:99:1287,105,0"}):
+    """
+    Return a vcf formated variant line
+    """
+    if not info:
+        info = "1000GAF=0.744609;AC=2;AF=1.00;AN=2;CLNSIG=255,10;"\
+        "CSQ=G|ENSG00000138378|ENST00000358470|Transcript|intron_variant"\
+        "||||||||-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000351255"\
+        "|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&C9JFG0_HUMAN"\
+        "&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000358470.4:c.274-23582A>C|||||"\
+        ",G|ENSG00000138378|ENST00000392320|Transcript|intron_variant|||||||"\
+        "|-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000376134"\
+        "|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&"\
+        "C9JFG0_HUMAN&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000392320.2:c.274-23582A>C|||||"\
+        ";Clinical_db_gene_annotation=OMIM-141201,FullList;DB;DP=35;Dbsnp129LCAF=0.2493"
+
+    variant_line = "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}".format(
+        chrom, pos, db_id, ref, alt, qual, filt, info, form
+    )
+    for ind_id in gt_calls:
+        variant_line = "{0}\t{1}".format(variant_line, gt_calls[ind_id])
+    
+    return variant_line
+
+def get_variant_dict(chrom='2', pos='191964633', db_id='rs7574865', ref='T', 
+alt='G', qual='1258.77', filt="PASS", info="", form="GT:AD:GQ:PL", 
+gt_calls={'ADM1003A3': "1/1:0,35:99:1287,105,0"}):
+    """
+    Return a vcf formated variant line
+    """
+    if not info:
+        info = "1000GAF=0.744609;AC=2;AF=1.00;AN=2;CLNSIG=255,10;"\
+        "CSQ=G|ENSG00000138378|ENST00000358470|Transcript|intron_variant"\
+        "||||||||-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000351255"\
+        "|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&C9JFG0_HUMAN"\
+        "&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000358470.4:c.274-23582A>C|||||"\
+        ",G|ENSG00000138378|ENST00000392320|Transcript|intron_variant|||||||"\
+        "|-1|STAT4|HGNC|11365|protein_coding||CCDS2310.1|ENSP00000376134"\
+        "|STAT4_HUMAN|Q53S87_HUMAN&Q53RU2_HUMAN&E9PBE2_HUMAN&C9JM11_HUMAN&"\
+        "C9JFG0_HUMAN&B7SIX5_HUMAN|UPI00000015F2||||3/23||ENST00000392320.2:c.274-23582A>C|||||"\
+        ";Clinical_db_gene_annotation=OMIM-141201,FullList;DB;DP=35;Dbsnp129LCAF=0.2493"
+    
+    info_dict = {}
+    
+    for info_entry in info.split(';'):
+        splitted_info = info_entry.split('=')
+        if len(splitted_info) > 1:
+            info_dict[splitted_info[0]] = splitted_info[1]
+        else:
+            info_dict[splitted_info[0]] = []
+    
+    
+    variant_dict = {
+        'CHROM': chrom,
+        'POS': pos,
+        'ID': db_id,
+        'REF': ref,
+        'ALT': alt,
+        'QUAL': qual,
+        'FILTER': filt,
+        'INFO': info,
+        'FORMAT': form,
+        'info_dict': info_dict
+    }
+    
+    for ind_id in gt_calls:
+        variant_dict[ind_id] = gt_calls[ind_id]
+    
+    return variant_dict
+
+
+
 def test_chrom():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='Chrom', field='CHROM')
-    assert plugin.get_entry(variant) == ['2']
+    test_chrom = '10'
+    variant_line = get_variant_line(chrom=test_chrom)
+    variant_dict = get_variant_dict(chrom=test_chrom)
+    
+    assert plugin.get_entry(variant_line=variant_line) == [test_chrom]
+    assert plugin.get_entry(variant_dict=variant_dict) == [test_chrom]
 
 def test_pos():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='Pos', field='POS')
-    assert plugin.get_entry(variant) == ['191964633']
+    test_pos = '1000'
+    variant_line = get_variant_line(pos=test_pos)
+    variant_dict = get_variant_dict(pos=test_pos)
+    
+    assert plugin.get_entry(variant_line=variant_line) == [test_pos]
+    assert plugin.get_entry(variant_dict=variant_dict) == [test_pos]
 
 def test_id():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='ID', field='ID')
-    assert plugin.get_entry(variant) == ['rs7574865']
+    db_id = 'rs001'
+    variant_line = get_variant_line(db_id=db_id)
+    variant_dict = get_variant_dict(db_id=db_id)
+    
+    assert plugin.get_entry(variant_line=variant_line) == [db_id]
+    assert plugin.get_entry(variant_dict=variant_dict) == [db_id]
+
+def test_multiple_id():
+    """Test to get the raw chromosome"""
+    plugin = Plugin(name='ID', field='ID')
+    db_id_1 = 'rs001'
+    db_id_2 = 'rs002'
+    db_id = "{0};{1}".format(db_id_1, db_id_2)
+    variant_line = get_variant_line(db_id=db_id)
+    variant_dict = get_variant_dict(db_id=db_id)
+    
+    assert plugin.get_entry(variant_line=variant_line) == [db_id_1, db_id_2]
+    assert plugin.get_entry(variant_dict=variant_dict) == [db_id_1, db_id_2]
 
 def test_ref():
     """Test to get the raw chromosome"""
-    plugin = Plugin(name='ID', field='REF')
-    assert plugin.get_entry(variant) == ['T']
+    plugin = Plugin(name='ref', field='REF')
+    ref = 'rs001'
+    variant_line = get_variant_line(ref=ref)
+    variant_dict = get_variant_dict(ref=ref)
+    
+    assert plugin.get_entry(variant_line=variant_line) == [ref]
+    assert plugin.get_entry(variant_dict=variant_dict) == [ref]
 
 def test_alt():
     """Test to get the raw chromosome"""
-    plugin = Plugin(name='ID', field='ALT')
-    assert plugin.get_entry(variant) == ['G']
+    plugin = Plugin(name='alt', field='ALT')
+    alt = 'A'
+    variant_line = get_variant_line(alt=alt)
+    variant_dict = get_variant_dict(alt=alt)
 
-def test_multi_alt():
+    assert plugin.get_entry(variant_line=variant_line) == [alt]
+    assert plugin.get_entry(variant_dict=variant_dict) == [alt]
+
+def test_multiple_alt():
     """Test to get the raw chromosome"""
-    plugin = Plugin(name='ID', field='ALT')
-    assert plugin.get_entry(multi_allele_variant) == ['G','A']
+    plugin = Plugin(name='alt', field='ALT')
+    alt_1 = 'A'
+    alt_2 = 'T'
+    alt = "{0},{1}".format(alt_1, alt_2)
+    variant_line = get_variant_line(alt=alt)
+    variant_dict = get_variant_dict(alt=alt)
+
+    assert plugin.get_entry(variant_line=variant_line) == [alt_1, alt_2]
+    assert plugin.get_entry(variant_dict=variant_dict) == [alt_1, alt_2]
 
 def test_qual():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='QUAL', field='QUAL')
-    assert plugin.get_entry(variant) == ['1258.77']
+    qual = '1234.5'
+    variant_line = get_variant_line(qual=qual)
+    variant_dict = get_variant_dict(qual=qual)
+
+    assert plugin.get_entry(variant_line=variant_line) == [qual]
+    assert plugin.get_entry(variant_dict=variant_dict) == [qual]
 
 def test_filter():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='Filter', field='FILTER')
-    assert plugin.get_entry(variant) == ['PASS', 'NOT_PASS']
+    filt = 'PASS'
+    variant_line = get_variant_line(filt=filt)
+    variant_dict = get_variant_dict(filt=filt)
+
+    assert plugin.get_entry(variant_line=variant_line) == [filt]
+    assert plugin.get_entry(variant_dict=variant_dict) == [filt]
+
+def test_multiple_filter():
+    """Test to get the raw chromosome"""
+    plugin = Plugin(name='Filter', field='FILTER')
+    filt_1 = 'PASS'
+    filt_2 = 'low_qual'
+    filt = "{0};{1}".format(filt_1, filt_2)
+    variant_line = get_variant_line(filt=filt)
+    variant_dict = get_variant_dict(filt=filt)
+
+    assert plugin.get_entry(variant_line=variant_line) == [filt_1, filt_2]
+    assert plugin.get_entry(variant_dict=variant_dict) == [filt_1, filt_2]
 
 def test_1000G():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='thousand_g', field='INFO', info_key="1000GAF", separators=[','])
-    assert plugin.get_entry(variant) == ['0.744609']
-
+    test_value = '0.744609'
+    
+    variant_line = get_variant_line()
+    variant_dict = get_variant_dict()
+    
+    assert plugin.get_entry(variant_line=variant_line) == [test_value]
+    assert plugin.get_entry(variant_dict=variant_dict) == [test_value]
+    
 def test_non_existing():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='non_existing', field='INFO', info_key="non", separators=[','])
-    assert plugin.get_entry(variant) == []
+
+    variant_line = get_variant_line()
+    variant_dict = get_variant_dict()
+
+    assert plugin.get_entry(variant_line=variant_line) == []
+    assert plugin.get_entry(variant_dict=variant_dict) == []
 
 def test_CLNSIG():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='Clnsig', field='INFO', info_key="CLNSIG", separators=[','])
-    assert plugin.get_entry(variant) == ['255','10']
+    test_value = ['255','10']
+    
+    variant_line = get_variant_line()
+    variant_dict = get_variant_dict()
+
+    assert plugin.get_entry(variant_line=variant_line) == test_value
+    assert plugin.get_entry(variant_dict=variant_dict) == test_value
 
 def test_CSQ():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='CSQ', field='INFO', info_key="CSQ", csq_key="Gene", separators=['&'])
-    assert plugin.get_entry(variant, csq_format=csq_format) == [
-        'ENSG00000138378', 
-        'ENSG00000138378', 
-        'ENSG00000138378', 
+    
+    variant_line = get_variant_line()
+    variant_dict = get_variant_dict()
+    
+    test_value = [
         'ENSG00000138378',
         'ENSG00000138378'
     ]
-
-def test_family_level():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='genetic_models', field='INFO', info_key="GeneticModels", separators=[','])
-    assert plugin.get_entry(phased_variant) == ['1:AD|AD_dn']
-
-def test_format():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='Format', field='FORMAT')
-    assert plugin.get_entry(variant) == ['GT','AD','GQ','PL']
-
-def test_gt_call():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='gt_call', field='sample_id', gt_key='GT')
-    vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
-    assert plugin.get_entry(variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1','1']
-
-def test_gt_call_PL():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='gt_call', field='sample_id', gt_key='PL', separators=[','])
-    vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
-    assert plugin.get_entry(variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1287','105','0']
-
-def test_phased_gt_call():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='gt_call', field='sample_id', gt_key='GT')
-    vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
-    assert plugin.get_entry(phased_variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1','1']
-
-def test_gt_call_no_gt_key():
-    """Test to get the raw chromosome"""
-    plugin = Plugin(name='gt_call', field='sample_id')
-    vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
-    with pytest.raises(IOError):
-        plugin.get_raw_entry(variant, individual_id='ADM1003A3')
-
+    
+    assert plugin.get_entry(variant_line=variant_line, csq_format=csq_format) == test_value
+    assert plugin.get_entry(variant_dict=variant_dict, csq_format=csq_format) == test_value
+    
+# def test_family_level():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='genetic_models', field='INFO', info_key="GeneticModels", separators=[','])
+#     assert plugin.get_entry(phased_variant) == ['1:AD|AD_dn']
+#
+# def test_format():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='Format', field='FORMAT')
+#     assert plugin.get_entry(variant) == ['GT','AD','GQ','PL']
+#
+# def test_gt_call():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='gt_call', field='sample_id', gt_key='GT')
+#     vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
+#     assert plugin.get_entry(variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1','1']
+#
+# def test_gt_call_PL():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='gt_call', field='sample_id', gt_key='PL', separators=[','])
+#     vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
+#     assert plugin.get_entry(variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1287','105','0']
+#
+# def test_phased_gt_call():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='gt_call', field='sample_id', gt_key='GT')
+#     vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
+#     assert plugin.get_entry(phased_variant, vcf_header=vcf_header, individual_id='ADM1003A3') == ['1','1']
+#
+# def test_gt_call_no_gt_key():
+#     """Test to get the raw chromosome"""
+#     plugin = Plugin(name='gt_call', field='sample_id')
+#     vcf_header = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'ADM1003A3']
+#     with pytest.raises(IOError):
+#         plugin.get_raw_entry(variant, individual_id='ADM1003A3')
+#
