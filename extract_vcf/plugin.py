@@ -274,7 +274,6 @@ class Plugin(object):
             vcf_header=vcf_header, 
             individual_id=individual_id
         )
-        
         if self.data_type == 'flag':
             if self.field == 'INFO':
                 if variant_line:
@@ -290,11 +289,11 @@ class Plugin(object):
                     value = True
         
         # If we have a record rule we need to return the correct value
-        elif self.record_rule:
+        elif raw_entry:
+            if self.record_rule:
             
-            if self.data_type == 'string':
+                if self.data_type == 'string':
                 
-                if raw_entry:
                     if self.record_rule == 'max':
                         sorted_strings = sorted(
                             self.string_rules.items(), 
@@ -312,62 +311,61 @@ class Plugin(object):
                         if string_rule[0] in raw_entry:
                             value = string_rule[0]
                             break
-            
-            else:
-                
-                typed_annotations = []
-                
-                for value in self.get_entry(
-                    raw_entry=raw_entry,
-                    vcf_header=vcf_header, 
-                    csq_format=csq_format, 
-                    family_id=family_id, 
-                    individual_id=individual_id):
-                
-                    if self.data_type == 'float':
-                        try:
-                            typed_annotations.append(float(value))
-                        except ValueError:
-                            pass
-                    
-                    elif self.data_type == 'integer':
-                        
-                        try:
-                            typed_annotations.append(int(value))
-                        except ValueError:
-                            pass
-                
-                if typed_annotations:
-                    if self.record_rule == 'max':
-                        value = max(typed_annotations)
-                    
-                    elif self.record_rule == 'min':
-                        value = min(typed_annotations)
                 else:
-                    value = None
+                
+                    typed_annotations = []
+                
+                    for value in self.get_entry(
+                        raw_entry=raw_entry,
+                        vcf_header=vcf_header, 
+                        csq_format=csq_format, 
+                        family_id=family_id, 
+                        individual_id=individual_id):
+                
+                        if self.data_type == 'float':
+                            try:
+                                typed_annotations.append(float(value))
+                            except ValueError:
+                                pass
+                    
+                        elif self.data_type == 'integer':
+                        
+                            try:
+                                typed_annotations.append(int(value))
+                            except ValueError:
+                                pass
+                
+                    if typed_annotations:
+                        if self.record_rule == 'max':
+                            value = max(typed_annotations)
+                    
+                        elif self.record_rule == 'min':
+                            value = min(typed_annotations)
+                    else:
+                        value = None
         
-        # If no record rule is given we return the raw annotation
-        # Here the data_type is not flag, and there is no record rule
-        else:
-            # We will just return the first annotation found
-            value = self.get_entry(
-                    raw_entry=raw_entry,
-                    vcf_header=vcf_header, 
-                    csq_format=csq_format, 
-                    family_id=family_id, 
-                    individual_id=individual_id)[0]
-            
-            if self.data_type == 'float':
+            # If no record rule is given we return the raw annotation
+            # Here the data_type is not flag, and there is no record rule
+            else:
+                # We will just return the first annotation found
+                value = self.get_entry(
+                        raw_entry=raw_entry,
+                        vcf_header=vcf_header, 
+                        csq_format=csq_format, 
+                        family_id=family_id, 
+                        individual_id=individual_id)[0]
+                
+                if self.data_type == 'float':
+                        try:
+                            value = float(value)
+                        except ValueError:
+                            pass
+                    
+                elif self.data_type == 'integer':
                     try:
-                        value = float(value)
+                        value = int(value)
                     except ValueError:
                         pass
-                
-            elif self.data_type == 'integer':
-                try:
-                    value = int(value)
-                except ValueError:
-                    pass
         
         return value
     
