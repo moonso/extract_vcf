@@ -147,6 +147,8 @@ class Plugin(object):
     def get_raw_entry(self, variant_line=None, variant_dict=None, vcf_header=None, individual_id=None):
         """Return the raw entry from the vcf field
             
+            If no entry was found return None
+            
             Args:
                 variant_line (str): A vcf formated variant line
                 vcf_header (list): A list with the vcf header line
@@ -274,6 +276,7 @@ class Plugin(object):
             vcf_header=vcf_header, 
             individual_id=individual_id
         )
+        # If data type is flag we only need to check if any entry exists
         if self.data_type == 'flag':
             if self.field == 'INFO':
                 if variant_line:
@@ -290,6 +293,7 @@ class Plugin(object):
         
         # If we have a record rule we need to return the correct value
         elif raw_entry:
+        # If there was no raw entry we will return None
             if self.record_rule:
             
                 if self.data_type == 'string':
@@ -308,7 +312,7 @@ class Plugin(object):
                         )
                     
                     for string_rule in sorted_strings:
-                        if string_rule[0] in raw_entry:
+                        if string_rule[0].lower() in raw_entry.lower():
                             value = string_rule[0]
                             break
                 else:
@@ -329,7 +333,6 @@ class Plugin(object):
                                 pass
                     
                         elif self.data_type == 'integer':
-                        
                             try:
                                 typed_annotations.append(int(value))
                             except ValueError:
@@ -346,6 +349,7 @@ class Plugin(object):
         
             # If no record rule is given we return the raw annotation
             # Here the data_type is not flag, and there is no record rule
+            # We know that there exists a raw annotation
             else:
                 # We will just return the first annotation found
                 value = self.get_entry(

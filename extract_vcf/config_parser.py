@@ -130,6 +130,8 @@ class ConfigParser(configobj.ConfigObj):
         """
         Convert a section with information of priorities to a string dict.
         
+        To avoid typos we make all letters lower case when comparing
+        
         Arguments:
             plugin_info (dict): A dictionary with plugin information
         
