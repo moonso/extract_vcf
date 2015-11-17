@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
   name='extract_vcf',
-  version='0.4.2',
+  version='0.4.3',
   url='https://github.com/moonso/extract_vcf',
   description='Tool to extract information from vcf file.',
   author='Måns Magnusson',
@@ -19,6 +19,8 @@ setup(
   include_package_data=True,
   zip_safe=False,
   install_requires=[
+      'configobj',
+      'six',
   ],
   scripts=[
   ],
