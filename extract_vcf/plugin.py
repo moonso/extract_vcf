@@ -1,6 +1,5 @@
 from logging import getLogger
 import operator
-import click
 
 from extract_vcf import split_strings
 
@@ -381,55 +380,3 @@ class Plugin(object):
                 self.info_key, self.csq_key, self.category, 
                 self.string_rules)
 
-@click.command()
-def cli():
-    from extract_vcf import logger
-    from extract_vcf.log import init_log
-    init_log(logger, loglevel="DEBUG")
-    name = "Example"
-    field = "INFO"
-    data_type = "integer"
-    separators = [',',':','|']
-    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
-                        separators=separators, info_key='TEST', record_rule='max')
-
-    print(test_plugin)
-    
-    thousand_g = Plugin(name='1000G', field='INFO', data_type='float', 
-                        separators=',', info_key='1000GAF', record_rule='max')
-    print(thousand_g)
-
-    db = Plugin(name='DB', field='INFO', data_type='flag', 
-                        separators=None, info_key='DB')
-    print(db)
-
-    id_plugin = Plugin(name='id', field='ID', data_type='flag', 
-                        separators=None, info_key=None)
-    print(id_plugin)
-    
-    variant = {
-        'CHROM': '1',
-        'POS': '1',
-        'ID': 'rs1',
-        'REF': 'A',
-        'ALT': 'C',
-        'QUAL': '100',
-        'FILTER': 'PASS',
-        'INFO': 'MQ=1,2;TEST=a:12|11,b:9|27;1000GAF=0.718251;DB',
-        'info_dict': {
-            'MQ': ['1', '2'],
-            'TEST': ['a:12|11', 'b:9|27'],
-            '1000GAF': ['0.718251'],
-            'DB': []
-        }
-    }
-    
-    print(test_plugin.get_value(variant))
-    print(thousand_g.get_value(variant))
-    print(db.get_value(variant))
-    print(id_plugin.get_value(variant))
-    
-
-    
-if __name__ == '__main__':
-    cli()
