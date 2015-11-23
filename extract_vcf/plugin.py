@@ -1,6 +1,5 @@
 from logging import getLogger
 import operator
-import click
 
 from extract_vcf import split_strings
 
@@ -8,7 +7,7 @@ class Plugin(object):
     """Class for holding information about a plugin"""
     def __init__(self, name, field, data_type=None, separators=[], info_key=None, 
                 category=None, csq_key=None, record_rule=None, gt_key=None,
-                string_rules={}):
+                string_rules={}, dict_entry=False):
         """
         The plugin class hold plugin information. The main task for a plugin
         is to return the correct value from a vcf field based on a number of
@@ -33,6 +32,9 @@ class Plugin(object):
             csq_key (str): The name of the Vep entry
             record_rule (str): Anyone of ['min', 'max']
             string_rules (dict): A dictionary with priority order of string matches
+            dict_entry (bool): If the values are annotated as a dictionary. 
+                         In that case the the annotattion after first splitter will
+                         be used as key.
         
         """
         super(Plugin, self).__init__()
@@ -74,9 +76,11 @@ class Plugin(object):
         self.gt_key = gt_key
         self.logger.info("gt_key: {0}".format(self.gt_key))
         
+        self.dict_entry = dict_entry
+        
     
     def get_entry(self, variant_line=None, variant_dict=None, raw_entry=None, 
-    vcf_header=None, csq_format=None, family_id=None, individual_id=None):
+    vcf_header=None, csq_format=None, dict_key=None, individual_id=None):
         """Return the splitted entry from variant information
             
             Args:
@@ -94,11 +98,11 @@ class Plugin(object):
                 variant_line=variant_line, 
                 variant_dict=variant_dict, 
                 vcf_header=vcf_header, 
-                individual_id=individual_id, 
+                individual_id=individual_id,
+                dict_key=dict_key
             )
         
         entry = []
-        
         if raw_entry:
             
             if self.field in ['CHROM', 'POS', 'REF', 'QUAL']:
@@ -131,7 +135,12 @@ class Plugin(object):
                     for csq_entry in raw_entry.split(','):
                         entry += split_strings(csq_entry.split('|')[csq_column], self.separators)
                 else:
-                    entry = split_strings(raw_entry, self.separators)
+                    if self.dict_entry:
+                        separators = self.separators[2:]
+                    else:
+                        separators = self.separators
+                    
+                    entry = split_strings(raw_entry, separators)
             
             elif self.field == 'sample_id':
                 if not self.separators:
@@ -144,7 +153,8 @@ class Plugin(object):
         
         return entry
     
-    def get_raw_entry(self, variant_line=None, variant_dict=None, vcf_header=None, individual_id=None):
+    def get_raw_entry(self, variant_line=None, variant_dict=None, 
+    vcf_header=None, individual_id=None, dict_key=None):
         """Return the raw entry from the vcf field
             
             If no entry was found return None
@@ -210,8 +220,25 @@ class Plugin(object):
                     if self.info_key == splitted_annotation[0]:
                         if len(splitted_annotation) == 2:
                             entry = splitted_annotation[1]
+                            
             elif variant_dict:
-                entry = variant_dict.get('info_dict',{}).get(self.info_key, None)
+                entry = variant_dict.get('info_dict',{}).get(self.info_key)
+            
+            if self.dict_entry and entry:
+                #First we split the "dictionaries"
+                first_split = entry.split(self.separators[0])
+                for annotation in first_split:
+                    # Then we search for the dict key
+                    splitted_entry = annotation.split(self.separators[1])
+                    key = splitted_entry[0] 
+                    value = splitted_entry[1]
+                    if dict_key:
+                        if key == dict_key:
+                            entry = value
+                    #If no key we just return the last entry
+                    else:
+                        entry = value
+            
         
         elif self.field == 'FORMAT':
             if variant_line:
@@ -247,7 +274,7 @@ class Plugin(object):
         return entry
     
     def get_value(self, variant_line=None, variant_dict=None, entry=None, 
-        raw_entry=None, vcf_header=None, csq_format=None, family_id=None, 
+        raw_entry=None, vcf_header=None, csq_format=None, dict_key=None, 
         individual_id=None):
         """
         Return the value as specified by plugin
@@ -274,7 +301,8 @@ class Plugin(object):
             variant_line = variant_line, 
             variant_dict = variant_dict, 
             vcf_header=vcf_header, 
-            individual_id=individual_id
+            individual_id=individual_id,
+            dict_key=dict_key
         )
         # If data type is flag we only need to check if any entry exists
         if self.data_type == 'flag':
@@ -283,7 +311,6 @@ class Plugin(object):
                     for info_entry in variant_line.split()[7].split(';'):
                         if self.info_key == info_entry.split('=')[0]:
                             value = True
-                
                 elif variant_dict:
                     if self.info_key in variant_dict.get('info_dict',{}):
                         value = True
@@ -316,14 +343,14 @@ class Plugin(object):
                             value = string_rule[0]
                             break
                 else:
-                
+                    
                     typed_annotations = []
-                
+                    
                     for value in self.get_entry(
                         raw_entry=raw_entry,
                         vcf_header=vcf_header, 
                         csq_format=csq_format, 
-                        family_id=family_id, 
+                        dict_key=dict_key, 
                         individual_id=individual_id):
                 
                         if self.data_type == 'float':
@@ -356,7 +383,7 @@ class Plugin(object):
                         raw_entry=raw_entry,
                         vcf_header=vcf_header, 
                         csq_format=csq_format, 
-                        family_id=family_id, 
+                        dict_key=dict_key, 
                         individual_id=individual_id)[0]
                 
                 if self.data_type == 'float':
@@ -381,55 +408,3 @@ class Plugin(object):
                 self.info_key, self.csq_key, self.category, 
                 self.string_rules)
 
-@click.command()
-def cli():
-    from extract_vcf import logger
-    from extract_vcf.log import init_log
-    init_log(logger, loglevel="DEBUG")
-    name = "Example"
-    field = "INFO"
-    data_type = "integer"
-    separators = [',',':','|']
-    test_plugin = Plugin(name=name, field=field, data_type=data_type, 
-                        separators=separators, info_key='TEST', record_rule='max')
-
-    print(test_plugin)
-    
-    thousand_g = Plugin(name='1000G', field='INFO', data_type='float', 
-                        separators=',', info_key='1000GAF', record_rule='max')
-    print(thousand_g)
-
-    db = Plugin(name='DB', field='INFO', data_type='flag', 
-                        separators=None, info_key='DB')
-    print(db)
-
-    id_plugin = Plugin(name='id', field='ID', data_type='flag', 
-                        separators=None, info_key=None)
-    print(id_plugin)
-    
-    variant = {
-        'CHROM': '1',
-        'POS': '1',
-        'ID': 'rs1',
-        'REF': 'A',
-        'ALT': 'C',
-        'QUAL': '100',
-        'FILTER': 'PASS',
-        'INFO': 'MQ=1,2;TEST=a:12|11,b:9|27;1000GAF=0.718251;DB',
-        'info_dict': {
-            'MQ': ['1', '2'],
-            'TEST': ['a:12|11', 'b:9|27'],
-            '1000GAF': ['0.718251'],
-            'DB': []
-        }
-    }
-    
-    print(test_plugin.get_value(variant))
-    print(thousand_g.get_value(variant))
-    print(db.get_value(variant))
-    print(id_plugin.get_value(variant))
-    
-
-    
-if __name__ == '__main__':
-    cli()

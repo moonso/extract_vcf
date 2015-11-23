@@ -243,3 +243,77 @@ def test_flag():
 
     assert plugin.get_value(variant_line=variant_line) == True
     assert plugin.get_value(variant_dict=variant_dict) == True
+
+def test_rank_score_no_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="RankScore=1:12,2:11")
+    variant_line = get_variant_line(info="RankScore=1:12,2:11")
+    
+    plugin = Plugin(
+        name='rank_score',
+        data_type='integer',
+        field='INFO', 
+        info_key="RankScore", 
+        separators=[',', ':'],
+        dict_entry=True
+    )
+    dict_entry = plugin.get_value(variant_dict=variant_dict)
+    line_entry = plugin.get_value(variant_line=variant_line)
+    
+    assert dict_entry == 11
+    assert line_entry == 11
+
+def test_rank_score_with_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="RankScore=1:12,2:11")
+    variant_line = get_variant_line(info="RankScore=1:12,2:11")
+    
+    plugin = Plugin(
+        name='rank_score',
+        data_type='integer',
+        field='INFO', 
+        info_key="RankScore", 
+        separators=[',', ':'],
+        dict_entry=True
+    )
+    dict_entry = plugin.get_value(
+        variant_dict=variant_dict,
+        dict_key='1'
+        )
+    line_entry = plugin.get_value(
+        variant_line=variant_line,
+        dict_key='1'
+    )
+    
+    assert dict_entry == 12
+    assert line_entry == 12
+
+def test_rank_models():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    variant_line = get_variant_line(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    
+    plugin = Plugin(
+        name='genetic_models',
+        field='INFO',
+        data_type='string',
+        info_key="GeneticModels",
+        separators=[',', ':', '|'],
+        dict_entry=True,
+        string_rules={
+            'AD_dn':1,
+            'AD':2
+        }
+    )
+
+    dict_entry = plugin.get_value(
+        variant_dict=variant_dict,
+        dict_key='1'
+    )
+    line_entry = plugin.get_value(
+        variant_line=variant_line,
+        dict_key='1'
+    )
+
+    assert dict_entry == 'AD'
+    assert line_entry == 'AD'
