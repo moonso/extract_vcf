@@ -179,6 +179,93 @@ def test_format():
     assert plugin.get_raw_entry(variant_line=variant_line) == form
     assert plugin.get_raw_entry(variant_dict=variant_dict) == form
 
+
+def test_dict_two_separators_no_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="RankScore=1:12,2:11")
+    variant_line = get_variant_line(info="RankScore=1:12,2:11")
+    
+    plugin = Plugin(
+        name='rank_score', 
+        field='INFO', 
+        info_key="RankScore", 
+        separators=[',', ':'],
+        dict_entry=True
+    )
+    dict_entry = plugin.get_raw_entry(variant_dict=variant_dict)
+    line_entry = plugin.get_raw_entry(variant_line=variant_line)
+    assert dict_entry == '11'
+    assert line_entry == '11'
+
+def test_dict_two_separators_with_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="RankScore=1:12,2:11")
+    variant_line = get_variant_line(info="RankScore=1:12,2:11")
+    
+    plugin = Plugin(
+        name='rank_score', 
+        field='INFO', 
+        info_key="RankScore", 
+        separators=[',', ':'],
+        dict_entry=True
+    )
+    dict_entry = plugin.get_raw_entry(
+        variant_dict=variant_dict,
+        dict_key='1'
+    )
+    line_entry = plugin.get_raw_entry(
+        variant_line=variant_line,
+        dict_key='1'
+    )
+    
+    assert dict_entry == '12'
+    assert line_entry == '12'
+
+def test_dict_three_separators_no_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    variant_line = get_variant_line(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    
+    plugin = Plugin(
+        name='genetic_models',
+        field='INFO',
+        info_key="GeneticModels",
+        separators=[',', ':', '|'],
+        dict_entry=True
+    )
+
+    dict_entry = plugin.get_raw_entry(variant_dict=variant_dict)
+    line_entry = plugin.get_raw_entry(variant_line=variant_line)
+
+    assert dict_entry == 'AR_hom'
+    assert line_entry == 'AR_hom'
+
+def test_dict_three_separators_with_key():
+    """Test to get the raw chromosome"""
+    variant_dict = get_variant_dict(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    variant_line = get_variant_line(info="GeneticModels=1:AD|AD_dn,2:AR_hom")
+    
+    plugin = Plugin(
+        name='genetic_models',
+        field='INFO',
+        info_key="GeneticModels",
+        separators=[',', ':', '|'],
+        dict_entry=True
+    )
+
+    dict_entry = plugin.get_raw_entry(
+        variant_dict=variant_dict,
+        dict_key='1'
+    )
+    line_entry = plugin.get_raw_entry(
+        variant_line=variant_line,
+        dict_key='1'
+    )
+
+    assert dict_entry == 'AD|AD_dn'
+    assert line_entry == 'AD|AD_dn'
+
+
 def test_gt_call():
     """Test to get the raw chromosome"""
     plugin = Plugin(name='gt_call', field='sample_id', gt_key='GT')

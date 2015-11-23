@@ -36,7 +36,6 @@ Copyright (c) 2015 __MoonsoInc__. All rights reserved.
 from __future__ import print_function
 
 import logging
-import click
 
 from six import string_types
 import configobj
@@ -290,40 +289,3 @@ class ConfigParser(configobj.ConfigObj):
                 
         return True
 
-# @click.command()
-# @click.argument('config_file',
-#                 nargs=1,
-#                 type=click.Path(exists=True)
-# )
-# @click.option('-out', '--outfile',
-#                 nargs=1,
-#                 type=click.File('w')
-# )
-# @click.option('-l', '--loglevel',
-#                 type=click.Choice(['DEBUG', 'INFO', 'WARNING']),
-#                 default = 'INFO'
-# )
-# def read_config(config_file, outfile, loglevel):
-#     """Parse the config file and print it to the output."""
-#
-#     from extract_vcf import logger, init_log
-#     init_log(logger, loglevel=loglevel)
-#
-#     logger.info("Reading Config File: {0}".format(config_file))
-#
-#     config_reader = ConfigParser(config_file)
-#
-#     for plugin in config_reader.plugins:
-#         logger.info("Found plugin:{0}".format(plugin))
-#         logger.info("{0}: {1}".format(
-#             plugin,config_reader.plugins[plugin])
-#             )
-#
-#     for category in config_reader.categories:
-#         logger.info("Category {0}: {1}".format(
-#             category, config_reader.categories[category]
-#         ))
-#
-#
-# if __name__ == '__main__':
-#     read_config()
