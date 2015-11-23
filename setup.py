@@ -36,7 +36,7 @@ def parse_reqs(req_path='./requirements.txt'):
 
 setup(
   name='extract_vcf',
-  version='0.4.3',
+  version='0.5',
   url='https://github.com/moonso/extract_vcf',
   description='Tool to extract information from vcf file.',
   author='Måns Magnusson',
